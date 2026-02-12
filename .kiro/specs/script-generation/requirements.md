@@ -38,6 +38,19 @@
 7. WHEN Config生成轮次结构时，THE Config SHALL 为每轮分配阅读时间（10-15分钟）、搜证时间（15-20分钟）、推证/讨论时间（15-20分钟），并预留最终投票和真相揭示时间，所有轮次时间加总结时间不超过总时长
 8. WHEN 用户选择目标年龄段后，THE Config SHALL 将年龄段信息包含在配置对象中传递给Generator
 
+### 需求 1.5：新本格特殊设定配置
+
+**用户故事：** 作为剧本创作者，当我选择"新本格"游戏类型时，我希望能配置特殊世界观设定，以便AI在该设定规则体系内生成公平推理的剧本。
+
+#### 验收标准
+
+1. WHEN 用户选择游戏类型为"新本格"时，THE Config SHALL 额外提供特殊设定配置选项，包括：设定类型（超能力setting_superpower、异世界setting_fantasy、特殊规则setting_special_rule、叙述性诡计setting_narrative_trick中选择一种或多种）
+2. WHEN 用户选择设定类型后，THE Config SHALL 接受设定描述文本输入，用于描述具体的特殊规则（如"某角色能飞行，但每次飞行不超过5分钟且会被月光照到"）
+3. WHEN 用户配置特殊设定时，THE Config SHALL 接受设定限制条件文本输入，明确每种特殊能力/规则的边界和代价
+4. WHEN Generator生成新本格剧本时，THE Generator SHALL 确保所有特殊设定规则在DM手册和玩家手册的开篇完整公开，不存在隐藏规则
+5. WHEN Generator生成新本格剧本时，THE Generator SHALL 确保核心诡计基于特殊设定的规则边界或盲区设计，而非违反已公开的设定规则
+6. WHEN Generator生成新本格剧本时，THE Generator SHALL 确保在已公开的设定规则体系内，推理链条严格遵循逻辑，玩家可通过推理得出真相
+
 ### 需求 2：Skill库管理
 
 **用户故事：** 作为剧本创作者，我希望系统内置丰富的剧本杀Skill模板库，以便AI生成时能参考专业的剧本杀设计规则和模式。
@@ -47,7 +60,7 @@
 1. THE Skill SHALL 包含以下类别的预定义模板：角色设计（character_design）、线索设计（clue_design）、时间线构建（timeline）、动机设计（motive）、诡计设计（trick）、还原逻辑（restoration）、推理链条（deduction_chain）
 2. WHEN Generator请求特定类别的Skill时，THE Skill SHALL 返回该类别下所有可用的模板列表
 3. WHEN 用户选择游戏类型为"本格"时，THE Skill SHALL 优先提供本格推理类Skill模板（如密室诡计、不在场证明、物证链条）
-4. WHEN 用户选择游戏类型为"新本格"时，THE Skill SHALL 优先提供新本格类Skill模板（如叙述性诡计、时间线诡计、身份诡计）
+4. WHEN 用户选择游戏类型为"新本格"时，THE Skill SHALL 优先提供新本格类Skill模板（如特殊设定构建、设定内公平推理、超能力边界设计、叙述性诡计、时间线诡计、身份诡计、设定规则利用型诡计）
 5. WHEN 用户选择游戏类型为"变格"时，THE Skill SHALL 优先提供变格类Skill模板（如心理悬疑、氛围营造、道德困境）
 6. THE Skill SHALL 支持以JSON格式存储和读取Skill模板数据
 7. WHEN 读取Skill模板JSON数据后再序列化回JSON时，THE Skill SHALL 产生与原始数据等价的结果（往返一致性）

@@ -108,6 +108,21 @@ sequenceDiagram
 enum GameType { HONKAKU, SHIN_HONKAKU, HENKAKU }
 enum AgeGroup { ELEMENTARY, MIDDLE_SCHOOL, COLLEGE, ADULT }
 
+// 新本格特殊设定类型
+enum SettingType {
+  SUPERPOWER = 'setting_superpower',           // 超能力设定
+  FANTASY = 'setting_fantasy',                 // 异世界/架空设定
+  SPECIAL_RULE = 'setting_special_rule',       // 特殊规则设定（死亡循环、身体交换等）
+  NARRATIVE_TRICK = 'setting_narrative_trick'   // 叙述性诡计设定
+}
+
+// 特殊设定配置（仅新本格使用）
+interface SpecialSetting {
+  settingTypes: SettingType[];       // 可多选
+  settingDescription: string;        // 设定描述（如"某角色能飞行"）
+  settingConstraints: string;        // 设定限制条件（如"飞行不超过5分钟"）
+}
+
 interface ScriptConfig {
   id: string;
   playerCount: number;        // 1-6
@@ -121,6 +136,7 @@ interface ScriptConfig {
   theme: string;
   language: string;           // 默认 'zh'
   roundStructure: RoundStructure; // 自动计算
+  specialSetting?: SpecialSetting; // 仅当 gameType 为 SHIN_HONKAKU 时使用
 }
 
 interface IConfigService {
@@ -252,9 +268,11 @@ interface IGeneratorService {
 1. 从SkillService获取匹配游戏类型的Skill模板
 2. 查询历史反馈数据（低分维度、高频建议）
 3. 组装LLM提示词（系统提示 + 配置参数 + Skill模板 + 反馈优化指令 + 语言指令）
+   - 若为新本格类型，额外注入特殊设定描述和限制条件，并在系统提示中强调：设定规则必须前置公开、诡计必须基于设定边界、推理链条在设定内严格自洽
 4. 调用LLMAdapter生成内容
 5. 解析LLM返回的JSON结构化内容
 6. 校验生成结果（玩家手册数量、线索一致性、分支可达性）
+   - 若为新本格类型，额外校验：DM手册和玩家手册开篇是否包含完整设定规则声明
 7. 自动生成标签
 8. 存储到数据库
 
@@ -432,6 +450,7 @@ CREATE TABLE script_configs (
   theme VARCHAR(100),
   language VARCHAR(10) DEFAULT 'zh',
   round_structure JSON NOT NULL,
+  special_setting JSON,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -562,6 +581,16 @@ scripts:list:{filterHash}  -> String JSON (TTL: 60s)
 *对于任意*Script的反馈数据，当评价数量 ≥ 阈值（默认5）且任一维度平均评分 < 6时，checkAutoOptimizeTrigger返回true；否则返回false。
 
 **验证需求**: 8.4
+
+### Property 17: 新本格设定前置公开完整性
+*对于任意*gameType为SHIN_HONKAKU且包含specialSetting的Config，Generator生成的Script中DM_Handbook.overview和每个PlayerHandbook的开篇内容都包含完整的特殊设定规则声明，且设定规则声明与Config.specialSetting中的描述和限制条件语义一致。
+
+**验证需求**: 1.5.4
+
+### Property 18: 新本格设定内推理自洽性
+*对于任意*gameType为SHIN_HONKAKU的Script，DM_Handbook中的诡计设计和线索链条不违反已声明的特殊设定规则，即诡计利用的是设定规则的边界或盲区，而非直接违反规则。
+
+**验证需求**: 1.5.5, 1.5.6
 
 ## 错误处理
 
