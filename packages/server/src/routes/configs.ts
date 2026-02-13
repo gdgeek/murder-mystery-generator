@@ -7,7 +7,7 @@
 import { Router, Request, Response } from 'express';
 import { ConfigService } from '../services/config.service';
 
-const router = Router();
+const router: Router = Router();
 const configService = new ConfigService();
 
 /**

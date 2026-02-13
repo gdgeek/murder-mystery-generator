@@ -21,7 +21,7 @@ app.use(express.json());
 // i18n middleware: set req.language from Accept-Language header
 app.use((req, _res, next) => {
   const acceptLang = req.headers['accept-language'] || 'zh';
-  (req as Record<string, unknown>).language = acceptLang.split(',')[0].split('-')[0].trim();
+  (req as unknown as Record<string, unknown>).language = acceptLang.split(',')[0].split('-')[0].trim();
   next();
 });
 

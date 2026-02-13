@@ -286,7 +286,7 @@ ${specialSettingInstruction}
   /** Validate clue IDs are consistent between distribution and materials */
   validateClueConsistency(distribution: ClueDistributionEntry[], materials: Material[]): void {
     const clueCards = materials.filter(m => m.type === MaterialType.CLUE_CARD);
-    const materialClueIds = new Set(clueCards.map(c => (c as { clueId: string }).clueId).filter(Boolean));
+    const materialClueIds = new Set(clueCards.map(c => (c as unknown as { clueId: string }).clueId).filter(Boolean));
     const distributionClueIds = new Set(distribution.map(d => d.clueId));
 
     for (const clueId of distributionClueIds) {
