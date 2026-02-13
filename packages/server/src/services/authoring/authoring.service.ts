@@ -978,6 +978,7 @@ export class AuthoringService {
     if (!dmHandbook) throw new Error('Missing dm_handbook chapter');
     if (!branchStructure) throw new Error('Missing branch_structure chapter');
 
+    const adapter = this.getAdapterForSession(sessionId);
     const script: Script = {
       id: uuidv4(),
       version: 'v1.0',
@@ -990,6 +991,8 @@ export class AuthoringService {
       branchStructure,
       tags: [],
       status: ScriptStatus.READY,
+      aiProvider: adapter.getProviderName(),
+      aiModel: adapter.getDefaultModel(),
       createdAt: new Date(),
       updatedAt: new Date(),
     };

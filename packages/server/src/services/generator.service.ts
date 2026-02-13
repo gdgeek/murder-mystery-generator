@@ -141,6 +141,8 @@ export class GeneratorService {
       branchStructure: parsed.branchStructure,
       tags: [],
       status: ScriptStatus.READY,
+      aiProvider: this.llmAdapter.getProviderName(),
+      aiModel: this.llmAdapter.getDefaultModel(),
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -446,6 +448,8 @@ ${specialSettingInstruction}
         tags: original.tags,
         parentVersionId: original.id,
         status: ScriptStatus.READY,
+        aiProvider: this.llmAdapter.getProviderName(),
+        aiModel: this.llmAdapter.getDefaultModel(),
         createdAt: new Date(),
         updatedAt: new Date(),
       };

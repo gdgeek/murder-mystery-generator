@@ -1,8 +1,28 @@
 {
-  "extends": "./tsconfig.json",
   "compilerOptions": {
-    "paths": {},
-    "skipLibCheck": true
+    "target": "ES2022",
+    "module": "commonjs",
+    "lib": ["ES2022"],
+    "outDir": "dist",
+    "rootDir": "src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "resolveJsonModule": true,
+    "moduleResolution": "node",
+    "downlevelIteration": true,
+    "paths": {}
   },
-  "exclude": ["node_modules", "dist", "src/**/*.test.ts", "src/**/*.pbt.test.ts"]
+  "include": ["src/**/*"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/**/*.test.ts",
+    "src/**/*.pbt.test.ts",
+    "vitest.config.ts"
+  ]
 }

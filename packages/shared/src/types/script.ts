@@ -288,6 +288,8 @@ export interface Script {
   tags: Tag[];
   parentVersionId?: string;
   status: ScriptStatus;
+  aiProvider?: string;
+  aiModel?: string;
   createdAt: Date;
   updatedAt: Date;
 }
