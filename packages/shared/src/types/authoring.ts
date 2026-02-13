@@ -122,6 +122,14 @@ export interface FailureInfo {
 
 // ─── 创作会话 ───
 
+/** 并行批次信息 */
+export interface ParallelBatch {
+  chapterIndices: number[];       // 本批次包含的章节索引
+  completedIndices: number[];     // 已生成完成的章节索引
+  failedIndices: number[];        // 生成失败的章节索引
+  reviewedIndices: number[];      // 已审阅通过的章节索引
+}
+
 /** 创作会话 */
 export interface AuthoringSession {
   id: string;
@@ -134,7 +142,8 @@ export interface AuthoringSession {
   chapterEdits: Record<number, AuthorEdit[]>;
   currentChapterIndex: number;
   totalChapters: number;
-  scriptId?: string;          // 完成后关联的 Script ID
+  parallelBatch?: ParallelBatch;  // 当前并行生成批次
+  scriptId?: string;              // 完成后关联的 Script ID
   failureInfo?: FailureInfo;
   createdAt: Date;
   updatedAt: Date;

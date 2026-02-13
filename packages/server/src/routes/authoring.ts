@@ -189,11 +189,21 @@ router.post('/:id/phases/:phase/approve', async (req: Request, res: Response) =>
       return;
     }
 
-    // For chapter approve on last chapter, no LLM needed — can be sync
-    if (phase === 'chapter' && session.currentChapterIndex >= session.totalChapters - 1) {
-      const result = await authoringService.approvePhase(req.params.id, phase as PhaseName, req.body.notes);
-      res.json(result);
-      return;
+    // For chapter approve: if within a batch and more chapters to review (no LLM), sync.
+    // If triggering next batch generation or final completion, may need async.
+    if (phase === 'chapter') {
+      const batch = session.parallelBatch;
+      if (batch) {
+        const unreviewedCount = batch.chapterIndices.filter(
+          idx => !batch.reviewedIndices.includes(idx),
+        ).length;
+        if (unreviewedCount > 1) {
+          // More chapters in batch to review — no LLM, sync response
+          const result = await authoringService.approvePhase(req.params.id, phase as PhaseName, req.body.notes);
+          res.json(result);
+          return;
+        }
+      }
     }
 
     // Return 202 immediately

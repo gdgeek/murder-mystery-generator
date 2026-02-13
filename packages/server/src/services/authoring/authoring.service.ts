@@ -528,6 +528,7 @@ export class AuthoringService {
 
   /**
    * Approve outline: design_review → executing → chapter_review.
+   * Generates DM handbook first (chapter 0), then player handbooks in parallel.
    * Requirements: 4.5, 5.1, 5.2
    */
   private async approveOutline(
@@ -549,46 +550,183 @@ export class AuthoringService {
     session.totalChapters = config.playerCount + 3;
     session.currentChapterIndex = 0;
 
-    // Generate first chapter
+    // Generate first chapter (DM handbook) — must be sequential
     const promptBuilder = new PromptBuilder();
     const phaseParser = new PhaseParser();
     return this.generateCurrentChapter(session, config, promptBuilder, phaseParser);
   }
 
   /**
-   * Approve chapter: chapter_review → executing (next chapter) or completed.
+   * Approve chapter: handles both single-chapter and parallel-batch flows.
+   *
+   * Parallel generation strategy:
+   * - After DM handbook (ch 0) approved → generate all player handbooks in parallel
+   * - After all player handbooks approved → generate materials + branch_structure in parallel
+   * - Each batch: executing state, all chapters generated concurrently, then chapter_review
+   *   for batch review (user reviews each chapter in the batch via currentChapterIndex)
+   *
    * Requirements: 5.3, 5.6
    */
   private async approveChapter(
     session: AuthoringSession,
     config: import('@murder-mystery/shared').ScriptConfig,
   ): Promise<AuthoringSession> {
-    const isLastChapter = session.currentChapterIndex >= session.totalChapters - 1;
+    const batch = session.parallelBatch;
 
-    if (isLastChapter) {
-      // chapter_review → completed
-      const toCompleted = transition(session.state, 'completed', 'staged');
-      if (!toCompleted.success) throw new Error(toCompleted.error);
-      session.state = toCompleted.newState!;
+    // If we're in a batch review, mark current chapter as reviewed
+    if (batch) {
+      const ci = session.currentChapterIndex;
+      if (!batch.reviewedIndices.includes(ci)) {
+        batch.reviewedIndices.push(ci);
+      }
 
-      await this.saveSession(session);
+      // Find next un-reviewed chapter in this batch
+      const nextUnreviewed = batch.chapterIndices.find(
+        idx => !batch.reviewedIndices.includes(idx),
+      );
 
-      // Assemble all chapters into a complete Script (Req 5.6, 6.3)
-      return this.assembleScript(session.id);
+      if (nextUnreviewed !== undefined) {
+        // More chapters in this batch to review
+        session.currentChapterIndex = nextUnreviewed;
+        await this.saveSession(session);
+        return session;
+      }
+
+      // All chapters in batch reviewed — clear batch and decide next step
+      session.parallelBatch = undefined;
     }
 
-    // More chapters to generate
-    session.currentChapterIndex += 1;
+    // Determine what to generate next based on current position
+    const lastReviewedIndex = session.currentChapterIndex;
+    const lastReviewedType = this.getChapterType(lastReviewedIndex, config.playerCount);
 
+    // After DM handbook → parallel player handbooks
+    if (lastReviewedType === 'dm_handbook') {
+      const playerIndices = Array.from(
+        { length: config.playerCount },
+        (_, i) => i + 1,
+      );
+      return this.generateParallelBatch(session, config, playerIndices);
+    }
+
+    // After last player handbook → parallel materials + branch_structure
+    if (lastReviewedType === 'player_handbook') {
+      const materialsIdx = config.playerCount + 1;
+      const branchIdx = config.playerCount + 2;
+      return this.generateParallelBatch(session, config, [materialsIdx, branchIdx]);
+    }
+
+    // After materials/branch_structure → completed
+    // chapter_review → completed
+    const toCompleted = transition(session.state, 'completed', 'staged');
+    if (!toCompleted.success) throw new Error(toCompleted.error);
+    session.state = toCompleted.newState!;
+
+    await this.saveSession(session);
+    return this.assembleScript(session.id);
+  }
+
+  /**
+   * Generate multiple chapters in parallel, then transition to chapter_review.
+   * Sets up a ParallelBatch to track progress.
+   */
+  private async generateParallelBatch(
+    session: AuthoringSession,
+    config: import('@murder-mystery/shared').ScriptConfig,
+    chapterIndices: number[],
+  ): Promise<AuthoringSession> {
     // chapter_review → executing
     const toExecuting = transition(session.state, 'executing', 'staged');
     if (!toExecuting.success) throw new Error(toExecuting.error);
     session.state = toExecuting.newState!;
 
-    // Generate next chapter
+    session.parallelBatch = {
+      chapterIndices,
+      completedIndices: [],
+      failedIndices: [],
+      reviewedIndices: [],
+    };
+
+    // Save executing state before starting parallel generation
+    await this.saveSession(session);
+
     const promptBuilder = new PromptBuilder();
     const phaseParser = new PhaseParser();
-    return this.generateCurrentChapter(session, config, promptBuilder, phaseParser);
+    const approvedOutline = (session.outlineOutput?.authorEdited ?? session.outlineOutput?.llmOriginal) as import('@murder-mystery/shared').ScriptOutline;
+
+    // All chapters in this batch share the same previousChapters (everything before the batch)
+    const minBatchIndex = Math.min(...chapterIndices);
+    const previousChapters = session.chapters.filter(ch => ch.index < minBatchIndex);
+
+    // Fire all LLM calls in parallel
+    const results = await Promise.allSettled(
+      chapterIndices.map(async (chapterIndex) => {
+        const chapterType = this.getChapterType(chapterIndex, config.playerCount);
+        const request = promptBuilder.buildChapterPrompt(
+          config,
+          approvedOutline,
+          chapterType,
+          chapterIndex,
+          previousChapters,
+        );
+        const response = await this.llmAdapter.send(request);
+        const chapter = phaseParser.parseChapter(response.content, chapterType);
+        chapter.index = chapterIndex;
+        if (chapterType === 'player_handbook') {
+          chapter.characterId = `player-${chapterIndex}`;
+        }
+        return chapter;
+      }),
+    );
+
+    // Collect results
+    const failedIndices: number[] = [];
+    for (let i = 0; i < results.length; i++) {
+      const result = results[i];
+      const chapterIndex = chapterIndices[i];
+      if (result.status === 'fulfilled') {
+        const chapter = result.value;
+        const existingIdx = session.chapters.findIndex(ch => ch.index === chapterIndex);
+        if (existingIdx >= 0) {
+          session.chapters[existingIdx] = chapter;
+        } else {
+          session.chapters.push(chapter);
+        }
+        session.parallelBatch!.completedIndices.push(chapterIndex);
+      } else {
+        failedIndices.push(chapterIndex);
+        session.parallelBatch!.failedIndices.push(chapterIndex);
+      }
+    }
+
+    // If all failed, go to failed state
+    if (failedIndices.length === chapterIndices.length) {
+      const toFailed = transition(session.state, 'failed', 'staged');
+      if (toFailed.success) {
+        session.state = toFailed.newState!;
+      } else {
+        session.state = 'failed';
+      }
+      session.failureInfo = {
+        phase: 'chapter',
+        error: `All parallel chapters failed: [${failedIndices.join(', ')}]`,
+        failedAt: new Date(),
+        retryFromState: 'executing',
+      };
+      await this.saveSession(session);
+      return session;
+    }
+
+    // At least some succeeded — go to chapter_review, start with first completed
+    const toChapterReview = transition(session.state, 'chapter_review', 'staged');
+    if (!toChapterReview.success) throw new Error(toChapterReview.error);
+    session.state = toChapterReview.newState!;
+
+    // Set currentChapterIndex to first completed chapter for review
+    session.currentChapterIndex = session.parallelBatch!.completedIndices[0];
+
+    await this.saveSession(session);
+    return session;
   }
 
   /**
@@ -839,12 +977,12 @@ export class AuthoringService {
     await pool.execute(
       `INSERT INTO authoring_sessions
         (id, config_id, mode, state, plan_output, outline_output, chapters, chapter_edits,
-         current_chapter_index, total_chapters, script_id, failure_info, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         current_chapter_index, total_chapters, parallel_batch, script_id, failure_info, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         row.id, row.config_id, row.mode, row.state,
         row.plan_output, row.outline_output, row.chapters, row.chapter_edits,
-        row.current_chapter_index, row.total_chapters, row.script_id, row.failure_info,
+        row.current_chapter_index, row.total_chapters, row.parallel_batch, row.script_id, row.failure_info,
         row.created_at, row.updated_at,
       ],
     );
@@ -858,12 +996,12 @@ export class AuthoringService {
       `UPDATE authoring_sessions SET
         config_id = ?, mode = ?, state = ?, plan_output = ?, outline_output = ?,
         chapters = ?, chapter_edits = ?, current_chapter_index = ?, total_chapters = ?,
-        script_id = ?, failure_info = ?, updated_at = ?
+        parallel_batch = ?, script_id = ?, failure_info = ?, updated_at = ?
        WHERE id = ?`,
       [
         row.config_id, row.mode, row.state, row.plan_output, row.outline_output,
         row.chapters, row.chapter_edits, row.current_chapter_index, row.total_chapters,
-        row.script_id, row.failure_info, row.updated_at, row.id,
+        row.parallel_batch, row.script_id, row.failure_info, row.updated_at, row.id,
       ],
     );
   }
@@ -881,6 +1019,7 @@ export class AuthoringService {
       chapter_edits: JSON.stringify(session.chapterEdits),
       current_chapter_index: session.currentChapterIndex,
       total_chapters: session.totalChapters,
+      parallel_batch: session.parallelBatch ? JSON.stringify(session.parallelBatch) : null,
       script_id: session.scriptId ?? null,
       failure_info: session.failureInfo ? JSON.stringify(session.failureInfo) : null,
       created_at: session.createdAt,
@@ -921,6 +1060,7 @@ export class AuthoringService {
     const chapters = parseJson(row.chapters) ?? [];
     const chapterEdits = parseJson(row.chapter_edits) ?? {};
     const failureInfo = parseJson(row.failure_info);
+    const parallelBatch = parseJson(row.parallel_batch);
 
     return {
       id: row.id as string,
@@ -933,6 +1073,7 @@ export class AuthoringService {
       chapterEdits: parseDateFields(chapterEdits) as Record<number, AuthorEdit[]>,
       currentChapterIndex: row.current_chapter_index as number,
       totalChapters: row.total_chapters as number,
+      parallelBatch: parallelBatch as import('@murder-mystery/shared').ParallelBatch | undefined,
       scriptId: row.script_id as string | undefined,
       failureInfo: parseDateFields(failureInfo) as FailureInfo | undefined,
       createdAt: new Date(row.created_at as string | Date),

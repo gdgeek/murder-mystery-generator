@@ -286,6 +286,7 @@ function makeSessionRow(overrides: Record<string, unknown> = {}): Record<string,
     chapter_edits: '{}',
     current_chapter_index: 0,
     total_chapters: 0,
+    parallel_batch: null,
     script_id: null,
     failure_info: null,
     created_at: '2025-01-15T10:00:00Z',
@@ -914,8 +915,8 @@ describe('AuthoringService.approvePhase', () => {
     });
   });
 
-  describe('approve chapter → next chapter or completed', () => {
-    it('transitions to executing and generates next chapter when more chapters remain', async () => {
+  describe('approve chapter → parallel batch or completed', () => {
+    it('generates player handbooks in parallel after DM handbook approved', async () => {
       const outlineOutput = {
         phase: 'outline',
         llmOriginal: JSON.parse(VALID_OUTLINE_JSON),
@@ -924,6 +925,7 @@ describe('AuthoringService.approvePhase', () => {
         generatedAt: '2025-01-15T10:00:00.000Z',
       };
       const chapters = [{ index: 0, type: 'dm_handbook', content: { overview: 'DM' }, generatedAt: '2025-01-15T10:00:00.000Z' }];
+      // 1. getSession (approvePhase)
       mockPool.execute.mockResolvedValueOnce([[makeSessionRow({
         state: 'chapter_review',
         outline_output: JSON.stringify(outlineOutput),
@@ -931,6 +933,9 @@ describe('AuthoringService.approvePhase', () => {
         current_chapter_index: 0,
         total_chapters: 7,
       })], []]);
+      // 2. saveSession (executing state before parallel gen)
+      mockPool.execute.mockResolvedValueOnce([[], []]);
+      // 3. saveSession (after parallel gen completes)
       mockPool.execute.mockResolvedValueOnce([[], []]);
 
       const llmSend = vi.fn().mockResolvedValue({
@@ -943,13 +948,15 @@ describe('AuthoringService.approvePhase', () => {
       const result = await service.approvePhase('sess-1', 'chapter');
 
       expect(result.state).toBe('chapter_review');
-      expect(result.currentChapterIndex).toBe(1);
-      expect(result.chapters).toHaveLength(2);
-      expect(result.chapters[1].type).toBe('player_handbook');
-      expect(llmSend).toHaveBeenCalledTimes(1);
+      // 4 player handbooks generated in parallel
+      expect(llmSend).toHaveBeenCalledTimes(4);
+      expect(result.chapters).toHaveLength(5); // DM + 4 players
+      expect(result.parallelBatch).toBeDefined();
+      expect(result.parallelBatch!.chapterIndices).toEqual([1, 2, 3, 4]);
+      expect(result.parallelBatch!.completedIndices).toHaveLength(4);
     });
 
-    it('transitions to completed when last chapter is approved', async () => {
+    it('transitions to completed when last batch is fully reviewed', async () => {
       const outlineOutput = {
         phase: 'outline',
         llmOriginal: JSON.parse(VALID_OUTLINE_JSON),
@@ -963,22 +970,30 @@ describe('AuthoringService.approvePhase', () => {
         content: { data: `chapter-${i}` },
         generatedAt: '2025-01-15T10:00:00.000Z',
       }));
+      // Last chapter in the final batch (materials+branch), branch_structure already reviewed
       const completedRow = makeSessionRow({
         state: 'chapter_review',
         outline_output: JSON.stringify(outlineOutput),
         chapters: JSON.stringify(chapters),
-        current_chapter_index: 6, // last chapter (index 6 of 7 total)
+        current_chapter_index: 5, // materials — last un-reviewed in batch
         total_chapters: 7,
+        parallel_batch: JSON.stringify({
+          chapterIndices: [5, 6],
+          completedIndices: [5, 6],
+          failedIndices: [],
+          reviewedIndices: [6], // branch_structure already reviewed
+        }),
       });
       // 1. getSession (approvePhase)
       mockPool.execute.mockResolvedValueOnce([[completedRow], []]);
       // 2. saveSession (approveChapter sets state to completed)
       mockPool.execute.mockResolvedValueOnce([[], []]);
       // 3. getSession (assembleScript re-fetches)
-      mockPool.execute.mockResolvedValueOnce([[makeSessionRow({
+      mockPool.execute.mockResolvedValueOnce([[{
         ...completedRow,
         state: 'completed',
-      })], []]);
+        parallel_batch: null,
+      }], []]);
       // 4. storeScript (INSERT INTO scripts)
       mockPool.execute.mockResolvedValueOnce([[], []]);
       // 5. saveSession (assembleScript saves scriptId)
@@ -1509,7 +1524,7 @@ describe('AuthoringService.assembleScript', () => {
     // saveSession should have been called with the scriptId set
     const saveCall = mockPool.execute.mock.calls[2];
     expect(saveCall[0]).toContain('UPDATE authoring_sessions SET');
-    expect(saveCall[1][9]).toBe(result.scriptId); // script_id param
+    expect(saveCall[1][10]).toBe(result.scriptId); // script_id param (after parallel_batch)
   });
 
   it('handles chapters in non-sequential order', async () => {

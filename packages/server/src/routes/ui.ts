@@ -267,9 +267,14 @@ function hu(s){
   if(s.state==='design_review'&&cs<=3){sp();go(3);const c=s.outlineOutput?.authorEdited||s.outlineOutput?.llmOriginal;$('#wf-oc').value=typeof c==='string'?c:JSON.stringify(c,null,2);ss($('#wf-os'),'大纲已生成，请审阅','o');sr($('#wf-or'),s.outlineOutput,true)}
   if(s.state==='chapter_review'&&cs<=4){sp();go(4);sch(s)}
   if(s.state==='completed'){sp();go(5);sr($('#wf-ar'),s,true)}
-  if(['planning','designing','executing','generating'].includes(s.state)){if(cs===2)ss($('#wf-ps'),'正在生成... '+s.state,'w');if(cs===3)ss($('#wf-os'),'正在生成... '+s.state,'w');if(cs===4)ss($('#wf-cs'),'正在生成... '+s.state,'w')}
+  if(['planning','designing','executing','generating'].includes(s.state)){const batch=s.parallelBatch;const bm=batch?' (并行 '+(batch.completedIndices?batch.completedIndices.length:0)+'/'+batch.chapterIndices.length+')':'';if(cs===2)ss($('#wf-ps'),'正在生成... '+s.state+bm,'w');if(cs===3)ss($('#wf-os'),'正在生成... '+s.state+bm,'w');if(cs===4)ss($('#wf-cs'),'正在并行生成中...'+bm,'w')}
 }
-function sch(s){const i=s.currentChapterIndex||0,ch=s.chapters&&s.chapters[i],c=ch?(typeof ch.content==='string'?ch.content:JSON.stringify(ch.content,null,2)):'';$('#wf-cc').value=c;ss($('#wf-cs'),'章节 '+(i+1)+'/'+s.totalChapters+' — 请审阅','o');sr($('#wf-chr'),ch||'无章节数据',!!ch)}
+const CHTYPE={dm_handbook:'DM手册',player_handbook:'玩家手册',materials:'游戏物料集',branch_structure:'分支结构'};
+function sch(s){const i=s.currentChapterIndex||0,ch=s.chapters&&s.chapters.find(c=>c.index===i),c=ch?(typeof ch.content==='string'?ch.content:JSON.stringify(ch.content,null,2)):'';$('#wf-cc').value=c;
+const batch=s.parallelBatch;
+if(batch){const done=batch.reviewedIndices?batch.reviewedIndices.length:0;const total=batch.chapterIndices?batch.chapterIndices.length:0;const tl=ch?CHTYPE[ch.type]||'章节':'章节';ss($('#wf-cs'),'批量审阅 '+(done+1)+'/'+total+' — '+tl+'（索引'+i+'）','o')}
+else{ss($('#wf-cs'),'章节 '+(i+1)+'/'+s.totalChapters+' — 请审阅','o')}
+sr($('#wf-chr'),ch||'无章节数据',!!ch)}
 
 // Plan
 $('#wf-psa').addEventListener('click',async()=>{const r=await api('PUT','/api/authoring-sessions/'+si+'/phases/plan/edit',{content:$('#wf-pc2').value});sr($('#wf-pr'),r.data,r.ok)});
@@ -282,8 +287,14 @@ $('#wf-oa').addEventListener('click',async()=>{const b=$('#wf-oa');b.disabled=tr
 // Chapter
 $('#wf-csa').addEventListener('click',async()=>{const r=await api('PUT','/api/authoring-sessions/'+si+'/phases/chapter/edit',{content:$('#wf-cc').value});sr($('#wf-chr'),r.data,r.ok)});
 $('#wf-crg').addEventListener('click',async()=>{const s=await api('GET','/api/authoring-sessions/'+si);const i=s.ok?(s.data.currentChapterIndex||0):0;const r=await api('POST','/api/authoring-sessions/'+si+'/chapters/'+i+'/regenerate');sr($('#wf-chr'),r.data,r.ok||r.status===202);if(r.ok||r.status===202){ss($('#wf-cs'),'正在重新生成章节...','w');poll(hu)}});
-$('#wf-ca').addEventListener('click',async()=>{const b=$('#wf-ca');b.disabled=true;const r=await api('POST','/api/authoring-sessions/'+si+'/phases/chapter/approve');sr($('#wf-chr'),r.data,r.ok||r.status===202);b.disabled=false;
-if(r.ok||r.status===202){const s=await api('GET','/api/authoring-sessions/'+si);if(s.ok&&s.data.state==='completed'){go(5);sr($('#wf-ar'),s.data,true)}else if(s.ok&&s.data.state==='chapter_review'){sch(s.data)}else{ss($('#wf-cs'),'正在生成下一章节...','w');poll(hu)}}});
+$('#wf-ca').addEventListener('click',async()=>{const b=$('#wf-ca');b.disabled=true;b.innerHTML='<span class="sp"></span>批准中...';ss($('#wf-cs'),'正在提交批准...','w');
+const r=await api('POST','/api/authoring-sessions/'+si+'/phases/chapter/approve');
+if(!r.ok&&r.status!==202){sr($('#wf-chr'),r.data,false);ss($('#wf-cs'),'批准失败','e');b.disabled=false;b.innerHTML='<i class="bi bi-check-lg"></i>批准章节';return}
+// If sync response (batch has more to review, or completed), handle directly
+if(r.ok&&r.status!==202){const s=r.data;if(s.state==='completed'){b.disabled=false;b.innerHTML='<i class="bi bi-check-lg"></i>批准章节';go(5);sr($('#wf-ar'),s,true)}else if(s.state==='chapter_review'){b.disabled=false;b.innerHTML='<i class="bi bi-check-lg"></i>批准章节';sch(s)}else{b.disabled=false;b.innerHTML='<i class="bi bi-check-lg"></i>批准章节';ss($('#wf-cs'),'正在并行生成下一批章节...','w');poll(hu)}return}
+// 202 — async generation started
+ss($('#wf-cs'),'正在并行生成下一批章节，请稍候...','w');sr($('#wf-chr'),'后台并行生成中，请耐心等待...',true);
+b.disabled=false;b.innerHTML='<i class="bi bi-check-lg"></i>批准章节';poll(hu)});
 
 // Done
 $('#wf-asm').addEventListener('click',async()=>{const b=$('#wf-asm');b.disabled=true;b.innerHTML='<span class="sp"></span>组装中...';const r=await api('POST','/api/authoring-sessions/'+si+'/assemble');sr($('#wf-ar'),r.data,r.ok);b.disabled=false;b.innerHTML='<i class="bi bi-box"></i>组装剧本'});
