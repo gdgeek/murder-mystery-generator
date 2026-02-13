@@ -1,0 +1,37 @@
+{
+  "providers": [
+    {
+      "providerName": "openai",
+      "apiKey": "${LLM_PROVIDER_OPENAI_API_KEY}",
+      "endpoint": "https://api.openai.com/v1/chat/completions",
+      "defaultModel": "gpt-4"
+    },
+    {
+      "providerName": "anthropic",
+      "apiKey": "${LLM_PROVIDER_ANTHROPIC_API_KEY}",
+      "endpoint": "https://api.anthropic.com/v1/messages",
+      "defaultModel": "claude-3-sonnet"
+    }
+  ],
+  "routing": {
+    "planning": {
+      "provider": "openai",
+      "model": "gpt-4",
+      "temperature": 0.8,
+      "maxTokens": 4096,
+      "fallback": ["anthropic"]
+    },
+    "chapter_generation": {
+      "provider": "anthropic",
+      "model": "claude-3-sonnet",
+      "temperature": 0.7,
+      "maxTokens": 8192,
+      "fallback": ["openai"]
+    },
+    "default": {
+      "provider": "openai",
+      "fallback": ["anthropic"]
+    }
+  },
+  "defaultLanguage": "zh-CN"
+}

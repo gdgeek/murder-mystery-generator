@@ -1,0 +1,14 @@
+{
+  "name": "murder-mystery-generator",
+  "private": true,
+  "scripts": {
+    "test": "pnpm -r test",
+    "build": "pnpm -r build"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.0.0",
+    "globals": "^17.3.0",
+    "typescript-eslint": "^8.55.0"
+  }
+}

@@ -1,0 +1,38 @@
+[
+  {
+    "id": "honkaku-trick-01",
+    "category": "trick",
+    "name": "密室诡计设计",
+    "description": "经典密室杀人诡计的设计模板",
+    "gameTypes": ["honkaku"],
+    "priority": 90,
+    "content": "密室诡计必须基于物理可行性设计。提供密室构成条件、破解线索链、以及至少一个可验证的物证。确保玩家可通过逻辑推理还原密室构造方法。"
+  },
+  {
+    "id": "honkaku-trick-02",
+    "category": "trick",
+    "name": "不在场证明诡计",
+    "description": "利用时间差或替身制造不在场证明",
+    "gameTypes": ["honkaku"],
+    "priority": 85,
+    "content": "不在场证明诡计需要：明确的时间窗口、可被质疑的证人证词、以及至少一条可打破不在场证明的物证或逻辑矛盾。"
+  },
+  {
+    "id": "honkaku-deduction-01",
+    "category": "deduction_chain",
+    "name": "物证链条推理",
+    "description": "通过物证建立完整推理链条",
+    "gameTypes": ["honkaku"],
+    "priority": 80,
+    "content": "构建从物证到结论的完整推理链：物证发现→物证分析→嫌疑人关联→动机推断→真相还原。每一步必须有逻辑支撑。"
+  },
+  {
+    "id": "honkaku-restoration-01",
+    "category": "restoration",
+    "name": "还原逻辑完整性",
+    "description": "确保案件还原过程逻辑完整无漏洞",
+    "gameTypes": ["honkaku"],
+    "priority": 75,
+    "content": "案件还原必须回答：谁是凶手、作案动机、作案手法、作案时间、关键证据。每个要素都必须有对应的线索支撑。"
+  }
+]

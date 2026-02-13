@@ -1,0 +1,38 @@
+[
+  {
+    "id": "shin-honkaku-trick-01",
+    "category": "trick",
+    "name": "特殊设定构建",
+    "description": "在特殊世界观设定中构建公平推理的诡计",
+    "gameTypes": ["shin_honkaku"],
+    "priority": 95,
+    "content": "特殊设定诡计设计原则：1.设定规则必须在游戏开始前完整公开；2.诡计利用设定规则的边界或盲区，而非违反规则；3.玩家可在已知规则内通过推理发现诡计。"
+  },
+  {
+    "id": "shin-honkaku-trick-02",
+    "category": "trick",
+    "name": "超能力边界设计",
+    "description": "为超能力设定明确的边界和代价",
+    "gameTypes": ["shin_honkaku"],
+    "priority": 90,
+    "content": "每种超能力必须有明确限制：使用次数、持续时间、副作用、触发条件。诡计应利用这些限制的盲区而非超越限制。"
+  },
+  {
+    "id": "shin-honkaku-trick-03",
+    "category": "trick",
+    "name": "叙述性诡计",
+    "description": "利用叙述视角和信息呈现方式制造误导",
+    "gameTypes": ["shin_honkaku"],
+    "priority": 85,
+    "content": "叙述性诡计通过信息的呈现方式（而非隐藏信息）误导玩家。所有关键信息已公开，但玩家需要重新解读才能发现真相。"
+  },
+  {
+    "id": "shin-honkaku-deduction-01",
+    "category": "deduction_chain",
+    "name": "设定内公平推理",
+    "description": "确保推理链条在特殊设定规则内严格自洽",
+    "gameTypes": ["shin_honkaku"],
+    "priority": 80,
+    "content": "推理链条必须在已公开的设定规则体系内成立。每一步推理都应标注所依据的设定规则条目。"
+  }
+]

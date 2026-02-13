@@ -6,3 +6,9 @@ dist/
 *.log
 .DS_Store
 coverage/
+
+# pnpm store cache
+.pnpm-store/
+
+# generated output
+output/

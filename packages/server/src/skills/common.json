@@ -1,0 +1,29 @@
+[
+  {
+    "id": "common-character-design-01",
+    "category": "character_design",
+    "name": "角色动机层次设计",
+    "description": "为每个角色设计表面动机和深层动机，增加角色复杂度",
+    "gameTypes": ["honkaku", "shin_honkaku", "henkaku"],
+    "priority": 50,
+    "content": "为每个角色设计至少两层动机：表面动机（其他玩家可推理得出）和深层动机（需要深入调查才能发现）。确保动机之间存在逻辑关联。"
+  },
+  {
+    "id": "common-timeline-01",
+    "category": "timeline",
+    "name": "时间线交叉验证",
+    "description": "确保多角色时间线交叉点逻辑一致",
+    "gameTypes": ["honkaku", "shin_honkaku", "henkaku"],
+    "priority": 60,
+    "content": "构建主时间线后，为每个角色生成个人时间线视角。所有角色时间线在交叉点必须一致，不存在矛盾。"
+  },
+  {
+    "id": "common-clue-design-01",
+    "category": "clue_design",
+    "name": "线索分级设计",
+    "description": "将线索分为关键线索、辅助线索和干扰线索",
+    "gameTypes": ["honkaku", "shin_honkaku", "henkaku"],
+    "priority": 55,
+    "content": "线索分三级：关键线索（必须获取才能推理出真相）、辅助线索（加速推理但非必需）、干扰线索（误导方向但可被排除）。关键线索数量不超过总线索的30%。"
+  }
+]

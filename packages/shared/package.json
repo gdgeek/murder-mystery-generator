@@ -1,0 +1,16 @@
+{
+  "name": "@murder-mystery/shared",
+  "version": "1.0.0",
+  "description": "Shared type definitions for the Murder Mystery Generator",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist"
+  },
+  "license": "UNLICENSED",
+  "private": true,
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
+}

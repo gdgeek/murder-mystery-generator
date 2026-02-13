@@ -1,0 +1,29 @@
+[
+  {
+    "id": "henkaku-motive-01",
+    "category": "motive",
+    "name": "心理悬疑设计",
+    "description": "通过心理描写和氛围营造制造悬疑感",
+    "gameTypes": ["henkaku"],
+    "priority": 90,
+    "content": "心理悬疑重点在于角色内心世界的刻画。每个角色应有独特的心理创伤或秘密，通过渐进式揭露制造悬疑感。"
+  },
+  {
+    "id": "henkaku-motive-02",
+    "category": "motive",
+    "name": "道德困境设计",
+    "description": "设计没有明确对错的道德选择",
+    "gameTypes": ["henkaku"],
+    "priority": 85,
+    "content": "道德困境应让玩家面临两难选择：每个选项都有合理的道德依据，也都有不可避免的代价。避免设计有明显正确答案的选择。"
+  },
+  {
+    "id": "henkaku-character-01",
+    "category": "character_design",
+    "name": "氛围营造角色设计",
+    "description": "通过角色设计增强游戏氛围",
+    "gameTypes": ["henkaku"],
+    "priority": 80,
+    "content": "变格角色设计注重情感深度而非逻辑严密性。每个角色应有鲜明的情感特征和内心矛盾，角色间的情感纠葛是推动剧情的核心动力。"
+  }
+]
