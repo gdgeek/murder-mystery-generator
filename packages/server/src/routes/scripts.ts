@@ -19,6 +19,57 @@ const skillService = new SkillService();
 const llmAdapter = createLLMAdapter();
 const generatorService = new GeneratorService(llmAdapter, skillService);
 
+/**
+ * @openapi
+ * /api/scripts/generate:
+ *   post:
+ *     tags: [剧本管理]
+ *     summary: 生成剧本
+ *     description: 根据指定配置异步生成谋杀悬疑剧本，返回生成任务信息
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [configId]
+ *             properties:
+ *               configId:
+ *                 type: string
+ *                 description: 关联的剧本配置标识
+ *     responses:
+ *       202:
+ *         description: 剧本生成任务已创建
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 jobId:
+ *                   type: string
+ *                   description: 生成任务标识
+ *                 status:
+ *                   type: string
+ *                   description: 任务状态
+ *       400:
+ *         description: 请求参数验证失败
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: 未找到指定配置
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
 router.post('/generate', async (req: Request, res: Response) => {
   try {
     const { configId } = req.body;
@@ -38,6 +89,47 @@ router.post('/generate', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * @openapi
+ * /api/scripts/jobs/{jobId}:
+ *   get:
+ *     tags: [剧本管理]
+ *     summary: 查询生成任务状态
+ *     description: 根据任务标识查询剧本生成任务的当前状态和结果
+ *     parameters:
+ *       - in: path
+ *         name: jobId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 生成任务唯一标识
+ *     responses:
+ *       200:
+ *         description: 成功返回任务状态
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 jobId:
+ *                   type: string
+ *                   description: 任务标识
+ *                 status:
+ *                   type: string
+ *                   description: 任务状态
+ *       404:
+ *         description: 未找到指定任务
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
 router.get('/jobs/:jobId', async (req: Request, res: Response) => {
   try {
     const job = await generatorService.getJob(req.params.jobId);
@@ -51,6 +143,50 @@ router.get('/jobs/:jobId', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * @openapi
+ * /api/scripts:
+ *   get:
+ *     tags: [剧本管理]
+ *     summary: 获取剧本列表
+ *     description: 查询所有剧本，支持按配置标识、状态筛选及分页
+ *     parameters:
+ *       - in: query
+ *         name: configId
+ *         schema:
+ *           type: string
+ *         description: 按配置标识筛选
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *         description: 按剧本状态筛选
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *         description: 返回结果数量上限
+ *       - in: query
+ *         name: offset
+ *         schema:
+ *           type: integer
+ *         description: 分页偏移量
+ *     responses:
+ *       200:
+ *         description: 成功返回剧本列表
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
 router.get('/', async (req: Request, res: Response) => {
   try {
     const filters: Record<string, unknown> = {};
@@ -65,6 +201,40 @@ router.get('/', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * @openapi
+ * /api/scripts/{id}:
+ *   get:
+ *     tags: [剧本管理]
+ *     summary: 获取指定剧本
+ *     description: 根据剧本唯一标识获取剧本详情
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 剧本唯一标识
+ *     responses:
+ *       200:
+ *         description: 成功返回剧本详情
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *       404:
+ *         description: 未找到指定剧本
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
 router.get('/:id', async (req: Request, res: Response) => {
   try {
     const script = await generatorService.getScript(req.params.id);
@@ -78,6 +248,36 @@ router.get('/:id', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * @openapi
+ * /api/scripts/{id}/versions:
+ *   get:
+ *     tags: [剧本管理]
+ *     summary: 获取剧本版本历史
+ *     description: 根据剧本标识获取该剧本的所有历史版本列表
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 剧本唯一标识
+ *     responses:
+ *       200:
+ *         description: 成功返回版本历史列表
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
 router.get('/:id/versions', async (req: Request, res: Response) => {
   try {
     const versions = await generatorService.getScriptVersions(req.params.id);
@@ -87,6 +287,61 @@ router.get('/:id/versions', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * @openapi
+ * /api/scripts/{id}/optimize:
+ *   post:
+ *     tags: [剧本管理]
+ *     summary: 优化剧本
+ *     description: 根据反馈意见对指定剧本进行优化，生成新版本
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 剧本唯一标识
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [feedback]
+ *             properties:
+ *               feedback:
+ *                 type: string
+ *                 description: 优化反馈意见
+ *     responses:
+ *       201:
+ *         description: 剧本优化成功，返回新版本信息
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: string
+ *                   description: 剧本标识
+ *                 version:
+ *                   type: integer
+ *                   description: 新版本号
+ *                 title:
+ *                   type: string
+ *                   description: 剧本标题
+ *       400:
+ *         description: 请求参数验证失败
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
 router.post('/:id/optimize', async (req: Request, res: Response) => {
   try {
     const { feedback } = req.body;

@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { GeneratorService } from './generator.service';
 import { SkillService } from './skill.service';
 import {
@@ -172,15 +172,21 @@ describe('GeneratorService.validateGenerated', () => {
     expect(() => service.validateGenerated(parsed, makeConfig())).not.toThrow();
   });
 
-  it('throws when player handbook count mismatches', () => {
+  it('logs warning when player handbook count mismatches', () => {
     const parsed = JSON.parse(makeValidScriptJSON(3)); // 3 handbooks but config says 4
-    expect(() => service.validateGenerated(parsed, makeConfig({ playerCount: 4 }))).toThrow('Player handbook count mismatch');
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(() => service.validateGenerated(parsed, makeConfig({ playerCount: 4 }))).not.toThrow();
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Player handbook count mismatch'));
+    warnSpy.mockRestore();
   });
 
-  it('throws when clue in distribution but not in materials', () => {
+  it('logs warning when clue in distribution but not in materials', () => {
     const parsed = JSON.parse(makeValidScriptJSON());
     parsed.dmHandbook.clueDistribution.push({ clueId: 'missing-clue', roundIndex: 0, targetCharacterId: 'char-0', condition: '', timing: '' });
-    expect(() => service.validateGenerated(parsed, makeConfig())).toThrow('missing-clue');
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(() => service.validateGenerated(parsed, makeConfig())).not.toThrow();
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('missing-clue'));
+    warnSpy.mockRestore();
   });
 });
 

@@ -1,3 +1,4 @@
+export * from './ai-config';
 export * from './config';
 export * from './script';
 export * from './tag';

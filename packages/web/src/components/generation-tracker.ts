@@ -5,6 +5,7 @@
 
 import { ApiClient, ApiError } from '../api-client';
 import { showToast } from './toast';
+import type { EphemeralAiConfig } from '@murder-mystery/shared';
 
 /** 生成任务状态响应 */
 export interface GenerateJobResponse {
@@ -42,13 +43,18 @@ export class GenerationTracker {
     this.apiClient = options.apiClient;
   }
 
-  async startGeneration(configId: string): Promise<void> {
+  async startGeneration(configId: string, ephemeralAiConfig?: EphemeralAiConfig): Promise<void> {
     this.stopPolling();
     this.renderSpinner('正在发起生成任务…');
 
+    const body: Record<string, unknown> = { configId };
+    if (ephemeralAiConfig) {
+      body.ephemeralAiConfig = ephemeralAiConfig;
+    }
+
     let job: GenerateJobResponse;
     try {
-      job = await this.apiClient.post<GenerateJobResponse>('/api/scripts/generate', { configId });
+      job = await this.apiClient.post<GenerateJobResponse>('/api/scripts/generate', body);
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : '发起生成任务失败';
       this.renderError(msg);

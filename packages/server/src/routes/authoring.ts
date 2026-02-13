@@ -23,6 +23,8 @@ import { ConfigService } from '../services/config.service';
 import { SkillService } from '../services/skill.service';
 import { GeneratorService } from '../services/generator.service';
 import { createLLMAdapter } from '../adapters/create-llm-adapter';
+import { validateEphemeralAiConfig } from '@murder-mystery/shared';
+import { AiStatusService } from '../services/ai-status.service';
 import type { AuthoringMode, PhaseName } from '@murder-mystery/shared';
 
 const router: Router = Router();
@@ -31,17 +33,53 @@ const skillService = new SkillService();
 const configService = new ConfigService();
 const generatorService = new GeneratorService(llmAdapter, skillService);
 const authoringService = new AuthoringService(llmAdapter, skillService, generatorService, configService);
+const aiStatusService = new AiStatusService();
 
 const VALID_MODES: AuthoringMode[] = ['staged', 'vibe'];
 const VALID_PHASES: PhaseName[] = ['plan', 'outline', 'chapter'];
 
 /**
- * POST /api/authoring-sessions
- * Create a new authoring session.
+ * @openapi
+ * /api/authoring-sessions:
+ *   post:
+ *     tags: [创作会话]
+ *     summary: 创建创作会话
+ *     description: 创建一个新的分阶段创作会话，需要指定配置标识和创作模式。可选传入临时 AI 配置。
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/CreateSessionRequest'
+ *     responses:
+ *       201:
+ *         description: 会话创建成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/AuthoringSession'
+ *       400:
+ *         description: 请求参数验证失败
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: 未找到指定配置
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const { configId, mode } = req.body;
+    const { configId, mode, ephemeralAiConfig } = req.body;
 
     if (!configId || typeof configId !== 'string') {
       res.status(400).json({ error: 'configId is required and must be a string' });
@@ -52,7 +90,25 @@ router.post('/', async (req: Request, res: Response) => {
       return;
     }
 
-    const session = await authoringService.createSession(configId, mode);
+    // Validate ephemeralAiConfig if provided
+    if (ephemeralAiConfig) {
+      const validationErrors = validateEphemeralAiConfig(ephemeralAiConfig);
+      if (validationErrors) {
+        res.status(400).json({ error: 'Validation failed', details: validationErrors });
+        return;
+      }
+    }
+
+    // Check if server has AI configured when no ephemeralAiConfig is provided
+    if (!ephemeralAiConfig) {
+      const aiStatus = aiStatusService.getStatus();
+      if (aiStatus.status === 'unconfigured') {
+        res.status(400).json({ error: '服务器未配置 AI，请提供 ephemeralAiConfig' });
+        return;
+      }
+    }
+
+    const session = await authoringService.createSession(configId, mode, ephemeralAiConfig);
     res.status(201).json(session);
   } catch (err) {
     const message = (err as Error).message;
@@ -65,8 +121,53 @@ router.post('/', async (req: Request, res: Response) => {
 });
 
 /**
- * GET /api/authoring-sessions
- * List sessions with optional filters.
+ * @openapi
+ * /api/authoring-sessions:
+ *   get:
+ *     tags: [创作会话]
+ *     summary: 获取创作会话列表
+ *     description: 查询创作会话列表，支持按配置标识、状态、模式进行筛选，支持分页。
+ *     parameters:
+ *       - in: query
+ *         name: configId
+ *         schema:
+ *           type: string
+ *         description: 按配置标识筛选
+ *       - in: query
+ *         name: state
+ *         schema:
+ *           $ref: '#/components/schemas/SessionState'
+ *         description: 按会话状态筛选
+ *       - in: query
+ *         name: mode
+ *         schema:
+ *           $ref: '#/components/schemas/AuthoringMode'
+ *         description: 按创作模式筛选
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *         description: 返回数量限制
+ *       - in: query
+ *         name: offset
+ *         schema:
+ *           type: integer
+ *         description: 分页偏移量
+ *     responses:
+ *       200:
+ *         description: 成功返回会话列表
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/AuthoringSession'
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.get('/', async (req: Request, res: Response) => {
   try {
@@ -85,8 +186,38 @@ router.get('/', async (req: Request, res: Response) => {
 });
 
 /**
- * GET /api/authoring-sessions/:id
- * Get session by ID — use this to poll for progress.
+ * @openapi
+ * /api/authoring-sessions/{id}:
+ *   get:
+ *     tags: [创作会话]
+ *     summary: 获取指定创作会话
+ *     description: 根据会话唯一标识获取创作会话详情，可用于轮询异步操作的进度。
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 会话唯一标识
+ *     responses:
+ *       200:
+ *         description: 成功返回会话详情
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/AuthoringSession'
+ *       404:
+ *         description: 未找到指定会话
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.get('/:id', async (req: Request, res: Response) => {
   try {
@@ -102,9 +233,53 @@ router.get('/:id', async (req: Request, res: Response) => {
 });
 
 /**
- * POST /api/authoring-sessions/:id/advance
- * Non-blocking: returns 202 immediately, LLM runs in background.
- * Poll GET /:id to check when state changes.
+ * @openapi
+ * /api/authoring-sessions/{id}/advance:
+ *   post:
+ *     tags: [创作会话]
+ *     summary: 推进创作会话
+ *     description: 异步推进创作会话到下一阶段。立即返回 202 状态码，LLM 在后台执行生成任务。客户端需轮询 GET /api/authoring-sessions/{id} 检查进度。
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 会话唯一标识
+ *     responses:
+ *       202:
+ *         description: 已接受请求，生成任务在后台执行
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 sessionId:
+ *                   type: string
+ *                   description: 会话标识
+ *                 state:
+ *                   $ref: '#/components/schemas/SessionState'
+ *                 message:
+ *                   type: string
+ *                   description: 操作说明
+ *       400:
+ *         description: 当前状态不允许推进
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: 未找到指定会话
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.post('/:id/advance', async (req: Request, res: Response) => {
   try {
@@ -137,8 +312,61 @@ router.post('/:id/advance', async (req: Request, res: Response) => {
 });
 
 /**
- * PUT /api/authoring-sessions/:id/phases/:phase/edit
- * Save author edits for current phase. (synchronous, no LLM)
+ * @openapi
+ * /api/authoring-sessions/{id}/phases/{phase}/edit:
+ *   put:
+ *     tags: [创作会话]
+ *     summary: 编辑阶段产出物
+ *     description: 保存作者对当前阶段产出物的编辑内容。此操作为同步操作，不触发 LLM 生成。
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 会话唯一标识
+ *       - in: path
+ *         name: phase
+ *         required: true
+ *         schema:
+ *           $ref: '#/components/schemas/PhaseName'
+ *         description: 阶段名称
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [content]
+ *             properties:
+ *               content:
+ *                 type: object
+ *                 description: 编辑后的阶段内容
+ *     responses:
+ *       200:
+ *         description: 编辑保存成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/AuthoringSession'
+ *       400:
+ *         description: 请求参数验证失败或当前状态不允许编辑
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: 未找到指定会话
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.put('/:id/phases/:phase/edit', async (req: Request, res: Response) => {
   try {
@@ -171,9 +399,74 @@ router.put('/:id/phases/:phase/edit', async (req: Request, res: Response) => {
 });
 
 /**
- * POST /api/authoring-sessions/:id/phases/:phase/approve
- * Non-blocking: returns 202 immediately, LLM runs in background.
- * Poll GET /:id to check when state changes.
+ * @openapi
+ * /api/authoring-sessions/{id}/phases/{phase}/approve:
+ *   post:
+ *     tags: [创作会话]
+ *     summary: 审批阶段产出物
+ *     description: 审批通过当前阶段的产出物并触发下一阶段生成。异步操作返回 202 状态码，LLM 在后台执行。批次内仍有未审阅章节时为同步操作返回 200。
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 会话唯一标识
+ *       - in: path
+ *         name: phase
+ *         required: true
+ *         schema:
+ *           $ref: '#/components/schemas/PhaseName'
+ *         description: 阶段名称
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               notes:
+ *                 type: string
+ *                 description: 审批备注
+ *     responses:
+ *       200:
+ *         description: 同步审批成功（批次内仍有未审阅章节）
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/AuthoringSession'
+ *       202:
+ *         description: 已接受请求，下一阶段生成任务在后台执行
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 sessionId:
+ *                   type: string
+ *                   description: 会话标识
+ *                 state:
+ *                   $ref: '#/components/schemas/SessionState'
+ *                 message:
+ *                   type: string
+ *                   description: 操作说明
+ *       400:
+ *         description: 请求参数验证失败或当前状态不允许审批
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: 未找到指定会话
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.post('/:id/phases/:phase/approve', async (req: Request, res: Response) => {
   try {
@@ -229,8 +522,60 @@ router.post('/:id/phases/:phase/approve', async (req: Request, res: Response) =>
 });
 
 /**
- * POST /api/authoring-sessions/:id/chapters/:chapterIndex/regenerate
- * Non-blocking: returns 202 immediately, LLM runs in background.
+ * @openapi
+ * /api/authoring-sessions/{id}/chapters/{chapterIndex}/regenerate:
+ *   post:
+ *     tags: [创作会话]
+ *     summary: 重新生成指定章节
+ *     description: 异步重新生成指定索引的章节内容。立即返回 202 状态码，LLM 在后台执行生成任务。仅在 chapter_review 状态下可用。
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 会话唯一标识
+ *       - in: path
+ *         name: chapterIndex
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           minimum: 0
+ *         description: 章节索引（从 0 开始）
+ *     responses:
+ *       202:
+ *         description: 已接受请求，章节重新生成任务在后台执行
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 sessionId:
+ *                   type: string
+ *                   description: 会话标识
+ *                 state:
+ *                   $ref: '#/components/schemas/SessionState'
+ *                 message:
+ *                   type: string
+ *                   description: 操作说明
+ *       400:
+ *         description: 章节索引无效或当前状态不允许重新生成
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: 未找到指定会话
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.post('/:id/chapters/:chapterIndex/regenerate', async (req: Request, res: Response) => {
   try {
@@ -269,8 +614,44 @@ router.post('/:id/chapters/:chapterIndex/regenerate', async (req: Request, res: 
 });
 
 /**
- * POST /api/authoring-sessions/:id/retry
- * Retry from failed state. (synchronous, no LLM — just resets state)
+ * @openapi
+ * /api/authoring-sessions/{id}/retry:
+ *   post:
+ *     tags: [创作会话]
+ *     summary: 重试失败的会话
+ *     description: 从失败状态重试创作会话，重置会话状态到失败前的状态。此操作为同步操作，不触发 LLM 生成。
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 会话唯一标识
+ *     responses:
+ *       200:
+ *         description: 重试成功，会话状态已重置
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/AuthoringSession'
+ *       400:
+ *         description: 当前状态不允许重试
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: 未找到指定会话
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.post('/:id/retry', async (req: Request, res: Response) => {
   try {
@@ -291,8 +672,44 @@ router.post('/:id/retry', async (req: Request, res: Response) => {
 });
 
 /**
- * POST /api/authoring-sessions/:id/assemble
- * Assemble script from completed session. (synchronous, no LLM)
+ * @openapi
+ * /api/authoring-sessions/{id}/assemble:
+ *   post:
+ *     tags: [创作会话]
+ *     summary: 组装最终剧本
+ *     description: 从已完成的创作会话中组装最终剧本。此操作为同步操作，不触发 LLM 生成。仅在所有章节审批通过后可用。
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 会话唯一标识
+ *     responses:
+ *       200:
+ *         description: 剧本组装成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/AuthoringSession'
+ *       400:
+ *         description: 当前状态不允许组装
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: 未找到指定会话
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.post('/:id/assemble', async (req: Request, res: Response) => {
   try {

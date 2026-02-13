@@ -25,7 +25,9 @@ import type {
   BranchStructure,
   ScriptConfig,
 } from '@murder-mystery/shared';
+import type { EphemeralAiConfig } from '@murder-mystery/shared';
 import { ILLMAdapter } from '../../adapters/llm-adapter.interface';
+import { LLMAdapter } from '../../adapters/llm-adapter';
 import { SkillService } from '../skill.service';
 import { GeneratorService } from '../generator.service';
 import { ConfigService } from '../config.service';
@@ -36,6 +38,9 @@ import { SkillCategory } from '@murder-mystery/shared';
 import { pool } from '../../db/mysql';
 
 export class AuthoringService {
+  // 会话级临时适配器缓存
+  private sessionAdapters: Map<string, ILLMAdapter> = new Map();
+
   constructor(
     private llmAdapter: ILLMAdapter,
     private skillService: SkillService,
@@ -43,13 +48,37 @@ export class AuthoringService {
     private configService: ConfigService,
   ) {}
 
+  /**
+   * 获取会话对应的 LLM 适配器。
+   * 优先使用 sessionAdapters 中的临时适配器，否则使用默认适配器。
+   * Requirements: 3.2, 3.3, 3.4
+   */
+  getAdapterForSession(sessionId: string): ILLMAdapter {
+    const sessionAdapter = this.sessionAdapters.get(sessionId);
+    if (sessionAdapter) {
+      return sessionAdapter;
+    }
+    if (this.llmAdapter) {
+      return this.llmAdapter;
+    }
+    throw new Error('No AI configuration available. Please provide ephemeralAiConfig.');
+  }
+
+  /**
+   * 会话完成或失败时，清除临时适配器。
+   * Requirements: 4.2
+   */
+  cleanupSessionAdapter(sessionId: string): void {
+    this.sessionAdapters.delete(sessionId);
+  }
+
   // ─── Session Management (Task 6.1) ───
 
   /**
    * Create a new authoring session.
    * Requirements: 1.1, 1.4
    */
-  async createSession(configId: string, mode: AuthoringMode): Promise<AuthoringSession> {
+  async createSession(configId: string, mode: AuthoringMode, ephemeralAiConfig?: EphemeralAiConfig): Promise<AuthoringSession> {
     const config = await this.configService.getById(configId);
     if (!config) {
       throw new Error(`Config not found: ${configId}`);
@@ -68,6 +97,21 @@ export class AuthoringService {
       createdAt: now,
       updatedAt: now,
     };
+
+    // 如果提供了临时 AI 配置，创建临时适配器并缓存
+    if (ephemeralAiConfig) {
+      const adapter = new LLMAdapter({
+        apiKey: ephemeralAiConfig.apiKey,
+        endpoint: ephemeralAiConfig.endpoint,
+        model: ephemeralAiConfig.model,
+        provider: ephemeralAiConfig.provider,
+      });
+      this.sessionAdapters.set(session.id, adapter);
+      session.aiConfigMeta = {
+        provider: ephemeralAiConfig.provider,
+        model: ephemeralAiConfig.model,
+      };
+    }
 
     await this.insertSession(session);
     return session;
@@ -240,7 +284,7 @@ export class AuthoringService {
         AuthoringService.ALL_CATEGORIES,
       );
       const request = promptBuilder.buildPlanningPrompt(config, skills);
-      const response = await this.llmAdapter.send(request);
+      const response = await this.getAdapterForSession(session.id).send(request);
       const plan = phaseParser.parsePlan(response.content);
 
       // planning → plan_review
@@ -306,7 +350,7 @@ export class AuthoringService {
         chapterIndex,
         previousChapters,
       );
-      const response = await this.llmAdapter.send(request);
+      const response = await this.getAdapterForSession(session.id).send(request);
       const chapter = phaseParser.parseChapter(response.content, chapterType);
 
       // Set correct index and characterId
@@ -492,7 +536,7 @@ export class AuthoringService {
       );
       const approvedPlan = (session.planOutput!.authorEdited ?? session.planOutput!.llmOriginal) as import('@murder-mystery/shared').ScriptPlan;
       const request = promptBuilder.buildDesignPrompt(config, approvedPlan, skills, session.planOutput!.authorNotes);
-      const response = await this.llmAdapter.send(request);
+      const response = await this.getAdapterForSession(session.id).send(request);
       const outline = phaseParser.parseOutline(response.content);
 
       // designing → design_review
@@ -669,7 +713,7 @@ export class AuthoringService {
           chapterIndex,
           previousChapters,
         );
-        const response = await this.llmAdapter.send(request);
+        const response = await this.getAdapterForSession(session.id).send(request);
         const chapter = phaseParser.parseChapter(response.content, chapterType);
         chapter.index = chapterIndex;
         if (chapterType === 'player_handbook') {
@@ -752,7 +796,7 @@ export class AuthoringService {
         chapterIndex,
         previousChapters,
       );
-      const response = await this.llmAdapter.send(request);
+      const response = await this.getAdapterForSession(session.id).send(request);
       const chapter = phaseParser.parseChapter(response.content, chapterType);
 
       chapter.index = chapterIndex;
@@ -977,12 +1021,13 @@ export class AuthoringService {
     await pool.execute(
       `INSERT INTO authoring_sessions
         (id, config_id, mode, state, plan_output, outline_output, chapters, chapter_edits,
-         current_chapter_index, total_chapters, parallel_batch, script_id, failure_info, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         current_chapter_index, total_chapters, parallel_batch, script_id, ai_config_meta, failure_info, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         row.id, row.config_id, row.mode, row.state,
         row.plan_output, row.outline_output, row.chapters, row.chapter_edits,
-        row.current_chapter_index, row.total_chapters, row.parallel_batch, row.script_id, row.failure_info,
+        row.current_chapter_index, row.total_chapters, row.parallel_batch, row.script_id,
+        row.ai_config_meta, row.failure_info,
         row.created_at, row.updated_at,
       ],
     );
@@ -990,18 +1035,23 @@ export class AuthoringService {
 
   /** Update an existing session in the database */
   async saveSession(session: AuthoringSession): Promise<void> {
+    // 会话完成或失败时，清除临时适配器
+    if (session.state === 'completed' || session.state === 'failed') {
+      this.cleanupSessionAdapter(session.id);
+    }
+
     session.updatedAt = new Date();
     const row = this.sessionToRow(session);
     await pool.execute(
       `UPDATE authoring_sessions SET
         config_id = ?, mode = ?, state = ?, plan_output = ?, outline_output = ?,
         chapters = ?, chapter_edits = ?, current_chapter_index = ?, total_chapters = ?,
-        parallel_batch = ?, script_id = ?, failure_info = ?, updated_at = ?
+        parallel_batch = ?, script_id = ?, ai_config_meta = ?, failure_info = ?, updated_at = ?
        WHERE id = ?`,
       [
         row.config_id, row.mode, row.state, row.plan_output, row.outline_output,
         row.chapters, row.chapter_edits, row.current_chapter_index, row.total_chapters,
-        row.parallel_batch, row.script_id, row.failure_info, row.updated_at, row.id,
+        row.parallel_batch, row.script_id, row.ai_config_meta, row.failure_info, row.updated_at, row.id,
       ],
     );
   }
@@ -1021,6 +1071,7 @@ export class AuthoringService {
       total_chapters: session.totalChapters,
       parallel_batch: session.parallelBatch ? JSON.stringify(session.parallelBatch) : null,
       script_id: session.scriptId ?? null,
+      ai_config_meta: session.aiConfigMeta ? JSON.stringify(session.aiConfigMeta) : null,
       failure_info: session.failureInfo ? JSON.stringify(session.failureInfo) : null,
       created_at: session.createdAt,
       updated_at: session.updatedAt,
@@ -1061,6 +1112,7 @@ export class AuthoringService {
     const chapterEdits = parseJson(row.chapter_edits) ?? {};
     const failureInfo = parseJson(row.failure_info);
     const parallelBatch = parseJson(row.parallel_batch);
+    const aiConfigMeta = parseJson(row.ai_config_meta);
 
     return {
       id: row.id as string,
@@ -1075,6 +1127,7 @@ export class AuthoringService {
       totalChapters: row.total_chapters as number,
       parallelBatch: parallelBatch as import('@murder-mystery/shared').ParallelBatch | undefined,
       scriptId: row.script_id as string | undefined,
+      aiConfigMeta: aiConfigMeta as import('@murder-mystery/shared').AiConfigMeta | undefined,
       failureInfo: parseDateFields(failureInfo) as FailureInfo | undefined,
       createdAt: new Date(row.created_at as string | Date),
       updatedAt: new Date(row.updated_at as string | Date),

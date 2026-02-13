@@ -3,6 +3,8 @@
  * Requirements: 1.1, 1.6, 2.1, 3.2, 4.2, 7.1, 7.4, 7.5
  */
 
+import type { AiConfigMeta } from './ai-config';
+
 // ─── 枚举与联合类型 ───
 
 /** 创作模式 */
@@ -144,6 +146,7 @@ export interface AuthoringSession {
   totalChapters: number;
   parallelBatch?: ParallelBatch;  // 当前并行生成批次
   scriptId?: string;              // 完成后关联的 Script ID
+  aiConfigMeta?: AiConfigMeta;  // 临时 AI 配置元信息（不含 apiKey）
   failureInfo?: FailureInfo;
   createdAt: Date;
   updatedAt: Date;
