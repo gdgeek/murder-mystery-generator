@@ -3,7 +3,7 @@
  * Requirements: 2.1, 3.1, 4.1, 5.1, 6.1
  */
 
-import { AgeGroup, GameType, ScriptConfig } from './config';
+import { AgeGroup, GameType, ScriptConfig, ScriptStyle } from './config';
 import { Tag } from './tag';
 
 // ─── Skill 模板 ───
@@ -319,6 +319,7 @@ export interface CreateConfigInput {
   location: string;
   theme: string;
   language?: string;
+  style?: ScriptStyle;
   specialSetting?: {
     settingTypes: string[];
     settingDescription: string;

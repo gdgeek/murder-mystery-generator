@@ -3,6 +3,17 @@
  * Requirements: 1.1, 1.5
  */
 
+/** 剧本风格（侦探角色） */
+export enum ScriptStyle {
+  DETECTIVE = 'detective',   // 正统侦探（中年严谨）— 悬疑
+  DRAMA = 'drama',           // 戏影侦探（老年戏骨）— 情感
+  DISCOVER = 'discover',     // 寻迹侦探（少年户外）— 搞笑
+  DESTINY = 'destiny',       // 命运侦探（小女孩）— 浪漫
+  DREAM = 'dream',           // 幻梦侦探（宅男社恐）— 惊悚
+  DIMENSION = 'dimension',   // 赛博侦探（酷飒黑客）— 科幻
+  DEATH = 'death',           // 幽冥侦探（老者阴森）— 恐怖
+}
+
 /** 游戏类型 */
 export enum GameType {
   HONKAKU = 'honkaku',
@@ -62,6 +73,7 @@ export interface ScriptConfig {
   location: string;
   theme: string;
   language: string;
+  style: ScriptStyle;
   roundStructure: RoundStructure;
   specialSetting?: SpecialSetting;
 }

@@ -5,6 +5,7 @@
 
 import {
   ScriptConfig,
+  ScriptStyle,
   LLMRequest,
   SkillTemplate,
   ScriptPlan,
@@ -12,6 +13,17 @@ import {
   ChapterType,
   Chapter,
 } from '@murder-mystery/shared';
+
+/** 每种风格对应的叙事指导描述 */
+const STYLE_DIRECTIVES: Record<ScriptStyle, string> = {
+  [ScriptStyle.DETECTIVE]: '正统侦探风格（悬疑）：以严密的逻辑推理为核心，叙事冷静克制，注重证据链和推理过程。语言风格沉稳、精确，营造紧张的悬疑氛围。角色对话偏理性分析，线索设计环环相扣。',
+  [ScriptStyle.DRAMA]: '戏影侦探风格（搞笑）：以幽默搞笑为核心基调，大量使用谐音梗、无厘头桥段和喜剧反转。角色性格夸张滑稽，对话充满笑点和吐槽，场景设计荒诞有趣。在保持推理逻辑的同时让玩家笑声不断，线索可能藏在搞笑的误会和闹剧之中。整体氛围轻松欢乐，适合聚会娱乐。',
+  [ScriptStyle.DISCOVER]: '寻迹侦探风格（探索）：以多分支、多结局的剧情架构为核心特色。设计大量隐藏内容、秘密房间、暗线剧情，玩家的不同选择会导向截然不同的故事走向和结局。线索层层嵌套，表面之下还有更深的秘密等待发掘。鼓励玩家主动探索和冒险，每次游玩都可能发现新的内容。注重可重玩性和探索的成就感。',
+  [ScriptStyle.DESTINY]: '命运侦探风格（浪漫）：以命运交织和浪漫情感为基调，叙事唯美抒情，注重缘分和宿命感的营造。线索设计与情感线交织，角色之间有深层的命运羁绊，结局带有浪漫色彩。',
+  [ScriptStyle.DREAM]: '幻梦侦探风格（叙诡）：采用梦幻叙事手法，真实与幻想交替描述，让玩家难辨真假。善用叙述性诡计，通过不可靠叙述者、时间错位、梦境嵌套等手法模糊现实边界。线索可能存在于梦境中也可能是现实的碎片，玩家需要分辨哪些是真实发生的、哪些是幻觉或梦境。语言风格迷离恍惚，场景在清醒与梦境间无缝切换。',
+  [ScriptStyle.DIMENSION]: '赛博侦探风格（科幻）：融合高科技设定，场景中可以出现全息投影、传送门、太空飞船、AI助手、虚拟现实、量子通讯等未来科技元素。世界观充满赛博朋克或太空歌剧美学，线索可能涉及数据破解、科技装置、星际航行日志等。角色可以是黑客、星际探员、AI觉醒体等。语言风格前卫酷炫，科技感十足。',
+  [ScriptStyle.DEATH]: '幽冥侦探风格（恐怖）：充满未知与恐惧的恐怖叙事。可融合多种恐怖子类型：民俗恐怖（乡村禁忌、祭祀仪式、民间传说）、日式恐怖（怨灵、诅咒、湿冷阴森的压迫感）、哥特式恐怖（古堡、吸血鬼、暗黑浪漫）、克苏鲁恐怖（不可名状之物、理智崩溃、宇宙级未知恐惧）。场景描写充满死亡气息和不祥预兆，角色面对超越认知的未知存在。线索设计融入超自然元素，真相可能触及人类理解的边界。',
+};
 
 export interface IPromptBuilder {
   buildPlanningPrompt(config: ScriptConfig, skills: SkillTemplate[]): LLMRequest;
@@ -42,7 +54,11 @@ function buildConfigSection(config: ScriptConfig): string {
 - 时代背景：${config.era}
 - 地点设定：${config.location}
 - 主题风格：${config.theme}
-- 轮次数：${config.roundStructure.totalRounds}`;
+- 轮次数：${config.roundStructure.totalRounds}
+
+【叙事风格指导】
+${STYLE_DIRECTIVES[config.style] || STYLE_DIRECTIVES[ScriptStyle.DETECTIVE]}
+请在所有生成内容中严格遵循上述叙事风格，包括语言风格、氛围营造、角色对话语气、线索呈现方式等。`;
 }
 
 /** 构建 Skill 模板参考段落 */

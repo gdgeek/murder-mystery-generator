@@ -8,6 +8,7 @@ import {
   GameType,
   AgeGroup,
   SettingType,
+  ScriptStyle,
   ScriptConfig,
   RoundStructure,
   RoundPhase,
@@ -29,6 +30,7 @@ const ROUND_MAP: Record<number, { totalRounds: number; summaryMinutes: number }>
 const VALID_GAME_TYPES = Object.values(GameType) as string[];
 const VALID_AGE_GROUPS = Object.values(AgeGroup) as string[];
 const VALID_SETTING_TYPES = Object.values(SettingType) as string[];
+const VALID_STYLES = Object.values(ScriptStyle) as string[];
 
 export class ConfigService {
   /**
@@ -115,6 +117,13 @@ export class ConfigService {
       errors.push({ field: 'theme', message: 'theme is required', constraint: 'required' });
     } else if (typeof data.theme !== 'string' || data.theme.trim().length === 0) {
       errors.push({ field: 'theme', message: 'theme must be a non-empty string', constraint: 'non-empty string' });
+    }
+
+    // style: valid enum (optional, defaults to 'suspense')
+    if (data.style !== undefined && data.style !== null) {
+      if (typeof data.style !== 'string' || !VALID_STYLES.includes(data.style)) {
+        errors.push({ field: 'style', message: `style must be one of: ${VALID_STYLES.join(', ')}`, constraint: `enum: ${VALID_STYLES.join(', ')}` });
+      }
     }
 
     // specialSetting validation (only for shin_honkaku)
@@ -216,6 +225,7 @@ export class ConfigService {
     const id = uuidv4();
     const roundStructure = this.calculateRoundStructure(input.durationHours);
     const language = input.language || 'zh';
+    const style = input.style || ScriptStyle.DETECTIVE;
 
     const config: ScriptConfig = {
       id,
@@ -229,6 +239,7 @@ export class ConfigService {
       location: input.location,
       theme: input.theme,
       language,
+      style,
       roundStructure,
     };
 
@@ -242,8 +253,8 @@ export class ConfigService {
     }
 
     await pool.execute(
-      `INSERT INTO script_configs (id, player_count, duration_hours, game_type, age_group, restoration_ratio, deduction_ratio, era, location, theme, language, round_structure, special_setting)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO script_configs (id, player_count, duration_hours, game_type, age_group, restoration_ratio, deduction_ratio, era, location, theme, language, style, round_structure, special_setting)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         config.id,
         config.playerCount,
@@ -256,6 +267,7 @@ export class ConfigService {
         config.location,
         config.theme,
         config.language,
+        config.style,
         JSON.stringify(config.roundStructure),
         config.specialSetting ? JSON.stringify(config.specialSetting) : null,
       ],
@@ -289,6 +301,7 @@ export class ConfigService {
       location: row.location as string,
       theme: row.theme as string,
       language: (row.language as string) || 'zh',
+      style: (row.style as ScriptStyle) || ScriptStyle.DETECTIVE,
       roundStructure: typeof row.round_structure === 'string'
         ? JSON.parse(row.round_structure)
         : row.round_structure as RoundStructure,

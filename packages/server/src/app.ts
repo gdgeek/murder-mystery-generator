@@ -8,6 +8,7 @@ import configsRouter from './routes/configs';
 import scriptsRouter from './routes/scripts';
 import { tagRouter, scriptTagRouter } from './routes/tags';
 import authoringRouter from './routes/authoring';
+import uiRouter from './routes/ui';
 
 const app = express();
 
@@ -32,5 +33,8 @@ app.use('/api/authoring-sessions', authoringRouter);
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
+
+// Test UI
+app.use('/', uiRouter);
 
 export default app;
