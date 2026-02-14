@@ -47,3 +47,4 @@ inclusion: auto
 4. 技术栈：Node.js + Express + TypeScript, MySQL + Redis, Vitest + fast-check
 5. Monorepo 结构：packages/shared（类型）、packages/server（后端服务）
 6. 使用中文编写文档和注释
+7. Docker 容器部署：每次修改代码后，必须先在容器内执行 build 再 restart，否则容器运行的是旧的编译产物。流程：`docker exec murder-mystery-generator-server-1 sh -c "cd /app && pnpm --filter @murder-mystery/shared build && pnpm --filter @murder-mystery/server build"` → `docker restart murder-mystery-generator-server-1`

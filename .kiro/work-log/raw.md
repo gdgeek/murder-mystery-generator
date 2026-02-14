@@ -64,3 +64,10 @@
 **解决：** 在 log-qa-entry 和 daily-summary 两个 hook 的 prompt 中增加了安全要求：严禁记录 API Key、密码、Token、Secret、数据库凭证、个人隐私等敏感信息，涉及时一律用 [已脱敏] 替代。检查了现有 raw.md 内容，确认无敏感信息泄露。
 **涉及文件：** .kiro/hooks/log-qa-entry.kiro.hook, .kiro/hooks/daily-summary.kiro.hook
 ---
+
+---
+### 2026-02-14 16:50
+**问题：** 主页健康检查指示器一直显示"检查中"，无法变为"在线"
+**解决：** 工作日志 tab 的 JS 代码中误用 `$`（querySelector，返回单元素）代替 `$$`（querySelectorAll），导致 forEach 报错，后续健康检查 IIFE 未能执行。将两处 `$('.wl-sw')` 和 `$('.tb')` 改为 `$$`，重启容器后恢复正常。
+**涉及文件：** packages/server/src/routes/ui.ts
+---
