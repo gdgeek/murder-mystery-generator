@@ -85,3 +85,10 @@
 **解决：** 根本原因是 TypeScript 模板字符串（backtick）会解释转义序列，导致 `renderMd` 中的 `/\*\*(.+?)\*\*/g` 编译后变成无效正则 `/**(.+?)**/g`，`/\n/g` 变成匹配空白。改用 `new RegExp('[*][*](.+?)[*][*]','g')` 和 `new RegExp('\\n','g')` 避免转义丢失。同时修复 onclick 中 `\'none\'` 改为 `&quot;none&quot;`。构建重启后恢复正常。
 **涉及文件：** packages/server/src/routes/ui.ts
 ---
+
+---
+### 2026-02-14 17:25
+**问题：** 提交并推送代码以触发 CI
+**解决：** 将工作日志变更 commit 并 push 到 main 分支，触发 GitHub Actions CI 流水线。
+**涉及文件：** .kiro/work-log/raw.md
+---

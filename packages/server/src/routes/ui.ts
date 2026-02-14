@@ -290,7 +290,7 @@ async function api(m,p,b){const o={method:m,headers:{'Content-Type':'application
 function saveHash(){const p=new URLSearchParams();if(ci)p.set('config',ci);if(si)p.set('session',si);history.replaceState(null,'','#'+p.toString())}
 function clearHash(){history.replaceState(null,'','/')}
 function readHash(){const h=location.hash.slice(1);if(!h)return null;const p=new URLSearchParams(h);return{config:p.get('config'),session:p.get('session')}}
-const STATE_STEP={draft:1,planning:2,plan_review:2,designing:3,design_review:3,executing:4,chapter_review:4,completed:5,failed:-1};
+const STATE_STEP={draft:1,planning:2,plan_review:2,designing:3,design_review:3,executing:4,chapter_review:4,generating:2,completed:5,failed:-1};
 
 // Health
 (async()=>{const el=$('#health');try{const r=await fetch(A+'/health');el.innerHTML=r.ok?'<span class="dot on"></span><span class="hl">在线</span>':'<span class="dot off"></span><span class="hl">异常</span>'}catch{el.innerHTML='<span class="dot off"></span><span class="hl">离线</span>'}})();
