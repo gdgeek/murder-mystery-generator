@@ -24,6 +24,13 @@ export class LLMAdapter implements ILLMAdapter {
     this.endpoint = opts?.endpoint ?? process.env.LLM_ENDPOINT ?? 'https://api.openai.com/v1/chat/completions';
     this.model = opts?.model ?? process.env.LLM_MODEL ?? 'gpt-4';
     this.provider = opts?.provider ?? process.env.LLM_PROVIDER ?? 'openai';
+
+    // Validate API key is ASCII-only (Node.js fetch requires ByteString headers)
+    if (this.apiKey && !/^[\x00-\xff]*$/.test(this.apiKey)) {
+      throw new Error(
+        `LLM API Key contains non-ASCII characters. Please check your LLM_API_KEY env var or ephemeral config.`,
+      );
+    }
   }
 
   getProviderName(): string {
