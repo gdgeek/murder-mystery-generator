@@ -50,3 +50,17 @@
 **解决：** 更新了 daily-summary.kiro.hook 的日记模板，新增「工作评价」（从效率、代码质量、问题解决思路等角度客观评价）和「改进建议」（给出具体可执行的改进行动项）两个板块。
 **涉及文件：** .kiro/hooks/daily-summary.kiro.hook
 ---
+
+---
+### 2026-02-14 16:30
+**问题：** 制作简单的 UI 展示工作日志，并在主界面上添加打开链接
+**解决：** 新增后端 API 端点（/api/work-log/raw、/api/work-log/diary、/api/work-log/diary/:date）读取 .kiro/work-log 下的原始日志和每日日记。主界面 tab 栏新增「工作日志」标签页，包含原始记录和每日日记两个子视图，支持 markdown 渲染和日记详情展开。394 测试和 build 通过后推送。
+**涉及文件：** packages/server/src/routes/work-log.ts, packages/server/src/app.ts, packages/server/src/routes/ui.ts
+---
+
+---
+### 2026-02-14 16:40
+**问题：** 确保工作日志记录中不包含敏感信息（密码、API Key、个人隐私等）
+**解决：** 在 log-qa-entry 和 daily-summary 两个 hook 的 prompt 中增加了安全要求：严禁记录 API Key、密码、Token、Secret、数据库凭证、个人隐私等敏感信息，涉及时一律用 [已脱敏] 替代。检查了现有 raw.md 内容，确认无敏感信息泄露。
+**涉及文件：** .kiro/hooks/log-qa-entry.kiro.hook, .kiro/hooks/daily-summary.kiro.hook
+---
