@@ -1,4 +1,4 @@
-<nav class="nb"><a class="brand" href="/"><i class="bi bi-mask"></i>剧本杀创作工坊</a><span id="health"><span class="dot ld"></span><span class="hl">检查中</span></span></nav>
+<nav class="nb"><a class="brand" href="/"><i class="bi bi-mask"></i>剧本杀创作工坊</a><div class="nb-r"><span id="ai-badge" style="display:none"></span><span id="health"><span class="dot ld"></span><span class="hl">检查中</span></span></div></nav>
 <div class="mn">
 <!-- Tabs -->
 <div class="tabs">
@@ -11,6 +11,18 @@
 
 <!-- Tab: Workflow -->
 <div class="tp on" id="tab-workflow">
+<!-- Session Restore Entry -->
+<div class="g" id="restore-box" style="margin-bottom:1rem">
+<div class="gb" style="padding:.75rem 1.2rem">
+  <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">
+    <i class="bi bi-arrow-counterclockwise" style="color:var(--ac);font-size:1rem"></i>
+    <span style="font-size:.82rem;font-weight:600;color:var(--bright)">恢复会话</span>
+    <input type="text" id="restore-sid" placeholder="输入 Session ID" style="flex:1;min-width:180px;font-family:'JetBrains Mono',monospace;font-size:.8rem;padding:.4rem .65rem">
+    <button class="btn bp" id="restore-btn" style="font-size:.78rem;padding:.4rem .9rem"><i class="bi bi-box-arrow-in-right"></i>恢复</button>
+  </div>
+  <div id="restore-msg" style="display:none;font-size:.78rem;margin-top:.5rem;padding:.35rem .65rem;border-radius:6px"></div>
+</div>
+</div>
 <div class="stp" id="stepper">
   <div class="st on" data-step="0"><i class="bi bi-gear"></i>配置</div>
   <div class="st" data-step="1"><i class="bi bi-play-circle"></i>会话</div>
@@ -72,6 +84,23 @@
     <button class="btn bp" id="wf-bs"><i class="bi bi-arrow-right"></i>创建并推进</button>
   </div>
   <div style="margin-top:.6rem;font-size:.78rem;color:var(--dim)">Config ID: <code id="wf-cid" style="color:var(--ac)">—</code></div>
+  <div id="wf-sid-box" class="sid-box" style="display:none">
+    <div class="sid-label"><i class="bi bi-key"></i>Session ID（请妥善保存，可用于恢复会话）</div>
+    <div class="sid-row"><code id="wf-sid-val" class="sid-val"></code><button class="btn bg sid-copy" id="wf-sid-copy" title="复制 Session ID"><i class="bi bi-clipboard"></i>复制</button></div>
+  </div>
+  <div id="wf-token-box" class="token-box" style="display:none">
+    <div class="token-row">
+      <div class="token-group">
+        <span class="token-label"><i class="bi bi-lightning"></i>本次花费</span>
+        <span class="token-vals" id="wf-step-tokens">—</span>
+      </div>
+      <div class="token-sep"></div>
+      <div class="token-group">
+        <span class="token-label"><i class="bi bi-bar-chart"></i>累计花费</span>
+        <span class="token-vals" id="wf-total-tokens">—</span>
+      </div>
+    </div>
+  </div>
 </div>
 <div class="gf"><pre class="res" id="wf-sr">等待操作...</pre></div></div>
 </div>
@@ -103,6 +132,7 @@
 <div class="g"><div class="gh"><h3><i class="bi bi-book"></i>章节审阅</h3></div>
 <div class="gb">
   <div id="wf-cs"></div>
+  <div id="wf-fc-box" style="display:none;margin-top:.5rem"></div>
   <div class="fi" style="margin-top:.5rem"><label>当前章节内容</label><textarea id="wf-cc" style="min-height:220px" disabled placeholder="等待生成..."></textarea></div>
   <div class="br"><button class="btn bg" id="wf-csa" disabled><i class="bi bi-floppy"></i>保存编辑</button><button class="btn bw" id="wf-crg" disabled><i class="bi bi-arrow-repeat"></i>重新生成</button><button class="btn bs" id="wf-ca" disabled><i class="bi bi-check-lg"></i>批准章节</button></div>
 </div>
@@ -178,7 +208,7 @@
 <!-- AI Config Modal -->
 <div id="ai-modal" class="modal-overlay" style="display:none">
 <div class="modal-box">
-  <h3><i class="bi bi-cpu"></i>AI 配置</h3>
+  <div style="display:flex;align-items:center;justify-content:space-between"><h3><i class="bi bi-cpu"></i>AI 配置</h3><button id="ai-modal-close" class="btn bg" style="font-size:.72rem;padding:.25rem .5rem;display:none"><i class="bi bi-x-lg"></i></button></div>
   <div class="hint">服务器未配置 AI 服务，请输入你的 AI 信息以继续使用。配置仅用于本次生成，不会被保存。</div>
   <div class="mfi"><label>Provider</label><select id="ai-prov"><option value="doubao">豆包 (Doubao)</option><option value="deepseek">DeepSeek</option><option value="glm">智谱 GLM</option><option value="openai">OpenAI</option><option value="anthropic">Anthropic</option><option value="custom">自定义</option></select></div>
   <div class="mfi"><label>API Key</label><input type="password" id="ai-key" placeholder="输入 API Key"><div class="ferr" id="ai-key-err"></div></div>

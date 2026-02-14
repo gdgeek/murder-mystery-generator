@@ -162,6 +162,13 @@ export class LLMRouter implements ILLMAdapter {
     return provider?.defaultModel ?? 'unknown';
   }
 
+  /** Validate all provider API keys before making any LLM calls */
+  validateApiKey(): void {
+    for (const [name, adapter] of this.adapters) {
+      adapter.validateApiKey();
+    }
+  }
+
   /**
    * 从环境变量构建单提供商回退配置。
    * Requirements: 5.1

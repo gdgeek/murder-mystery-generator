@@ -34,6 +34,7 @@ class StubAdapter implements ILLMAdapter {
   getDefaultModel() {
     return 'stub-model';
   }
+  validateApiKey() {}
 }
 
 function makeConfig(overrides?: Partial<RoutingConfig>): RoutingConfig {
@@ -270,6 +271,7 @@ describe('LLMRouter.send', () => {
       },
       getProviderName: () => 'primary',
       getDefaultModel: () => 'model-a',
+      validateApiKey: () => {},
     });
     injectAdapters(router, stubs);
 
@@ -288,6 +290,7 @@ describe('LLMRouter.send', () => {
       },
       getProviderName: () => 'primary',
       getDefaultModel: () => 'model-a',
+      validateApiKey: () => {},
     });
     injectAdapters(router, stubs);
 
@@ -306,6 +309,7 @@ describe('LLMRouter.send', () => {
       },
       getProviderName: () => 'primary',
       getDefaultModel: () => 'model-a',
+      validateApiKey: () => {},
     });
     injectAdapters(router, stubs);
 

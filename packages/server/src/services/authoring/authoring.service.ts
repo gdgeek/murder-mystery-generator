@@ -37,6 +37,15 @@ import { PhaseParser } from './phase-parser';
 import { SkillCategory } from '@murder-mystery/shared';
 import { pool } from '../../db/mysql';
 
+/** States in which the session's AI config may be updated */
+export const AI_CONFIG_UPDATABLE_STATES: SessionState[] = [
+  'failed',
+  'plan_review',
+  'design_review',
+  'chapter_review',
+  'draft',
+];
+
 export class AuthoringService {
   // 会话级临时适配器缓存
   private sessionAdapters: Map<string, ILLMAdapter> = new Map();
@@ -192,6 +201,10 @@ export class AuthoringService {
       throw new Error(`Config not found: ${session.configId}`);
     }
 
+    // Early API key validation — fail fast with a clear message
+    const adapter = this.getAdapterForSession(session.id);
+    adapter.validateApiKey();
+
     if (session.mode === 'vibe') {
       return this.advanceVibe(session, config);
     }
@@ -285,13 +298,10 @@ export class AuthoringService {
       );
       const request = promptBuilder.buildPlanningPrompt(config, skills);
       const response = await this.getAdapterForSession(session.id).send(request);
+      session.lastStepTokens = response.tokenUsage;
       const plan = phaseParser.parsePlan(response.content);
 
-      // planning → plan_review
-      const toPlanReview = transition(session.state, 'plan_review', 'staged');
-      if (!toPlanReview.success) throw new Error(toPlanReview.error);
-      session.state = toPlanReview.newState!;
-
+      // Assign output BEFORE state transition (checkpoint: persist artifacts first)
       session.planOutput = {
         phase: 'plan',
         llmOriginal: plan,
@@ -299,6 +309,14 @@ export class AuthoringService {
         approved: false,
         generatedAt: new Date(),
       };
+
+      // Persist output before state transition (Requirement 5.1)
+      await this.saveSession(session);
+
+      // planning → plan_review
+      const toPlanReview = transition(session.state, 'plan_review', 'staged');
+      if (!toPlanReview.success) throw new Error(toPlanReview.error);
+      session.state = toPlanReview.newState!;
     } catch (err) {
       const toFailed = transition(session.state, 'failed', 'staged');
       if (toFailed.success) {
@@ -487,6 +505,10 @@ export class AuthoringService {
       throw new Error(`Config not found: ${session.configId}`);
     }
 
+    // Early API key validation — approve triggers LLM generation for next phase
+    const adapter = this.getAdapterForSession(session.id);
+    adapter.validateApiKey();
+
     if (phase === 'plan') {
       return this.approvePlan(session, config, notes);
     } else if (phase === 'outline') {
@@ -538,13 +560,10 @@ export class AuthoringService {
       const approvedPlan = (session.planOutput!.authorEdited ?? session.planOutput!.llmOriginal) as import('@murder-mystery/shared').ScriptPlan;
       const request = promptBuilder.buildDesignPrompt(config, approvedPlan, skills, session.planOutput!.authorNotes);
       const response = await this.getAdapterForSession(session.id).send(request);
+      session.lastStepTokens = response.tokenUsage;
       const outline = phaseParser.parseOutline(response.content);
 
-      // designing → design_review
-      const toDesignReview = transition(session.state, 'design_review', 'staged');
-      if (!toDesignReview.success) throw new Error(toDesignReview.error);
-      session.state = toDesignReview.newState!;
-
+      // Assign output BEFORE state transition (checkpoint: persist artifacts first)
       session.outlineOutput = {
         phase: 'outline',
         llmOriginal: outline,
@@ -552,6 +571,14 @@ export class AuthoringService {
         approved: false,
         generatedAt: new Date(),
       };
+
+      // Persist output before state transition (Requirement 5.2)
+      await this.saveSession(session);
+
+      // designing → design_review
+      const toDesignReview = transition(session.state, 'design_review', 'staged');
+      if (!toDesignReview.success) throw new Error(toDesignReview.error);
+      session.state = toDesignReview.newState!;
     } catch (err) {
       const toFailed = transition(session.state, 'failed', 'staged');
       if (toFailed.success) {
@@ -722,17 +749,19 @@ export class AuthoringService {
         if (chapterType === 'player_handbook') {
           chapter.characterId = `player-${chapterIndex}`;
         }
-        return chapter;
+        return { chapter, tokenUsage: response.tokenUsage };
       }),
     );
 
-    // Collect results
+    // Collect results and sum token usage from successful calls
     const failedIndices: number[] = [];
+    const sumTokens = { prompt: 0, completion: 0, total: 0 };
+    let hasSuccessful = false;
     for (let i = 0; i < results.length; i++) {
       const result = results[i];
       const chapterIndex = chapterIndices[i];
       if (result.status === 'fulfilled') {
-        const chapter = result.value;
+        const { chapter, tokenUsage } = result.value;
         const existingIdx = session.chapters.findIndex(ch => ch.index === chapterIndex);
         if (existingIdx >= 0) {
           session.chapters[existingIdx] = chapter;
@@ -740,11 +769,25 @@ export class AuthoringService {
           session.chapters.push(chapter);
         }
         session.parallelBatch!.completedIndices.push(chapterIndex);
+        if (tokenUsage) {
+          sumTokens.prompt += tokenUsage.prompt;
+          sumTokens.completion += tokenUsage.completion;
+          sumTokens.total += tokenUsage.total;
+          hasSuccessful = true;
+        }
       } else {
         failedIndices.push(chapterIndex);
         session.parallelBatch!.failedIndices.push(chapterIndex);
       }
     }
+
+    // Assign summed token usage from successful calls (Requirement 1.3)
+    if (hasSuccessful) {
+      session.lastStepTokens = sumTokens;
+    }
+
+    // Persist chapter outputs before state transition (Requirement 5.3)
+    await this.saveSession(session);
 
     // If all failed, go to failed state
     if (failedIndices.length === chapterIndices.length) {
@@ -802,6 +845,7 @@ export class AuthoringService {
         approvedPlan,
       );
       const response = await this.getAdapterForSession(session.id).send(request);
+      session.lastStepTokens = response.tokenUsage;
       const chapter = phaseParser.parseChapter(response.content, chapterType);
 
       chapter.index = chapterIndex;
@@ -816,6 +860,9 @@ export class AuthoringService {
       } else {
         session.chapters.push(chapter);
       }
+
+      // Persist chapter output before state transition (Requirement 5.3)
+      await this.saveSession(session);
 
       // executing → chapter_review
       const toChapterReview = transition(session.state, 'chapter_review', 'staged');
@@ -850,6 +897,10 @@ export class AuthoringService {
       if (!session) {
         throw new Error(`Session not found: ${sessionId}`);
       }
+
+      // Early API key validation
+      const adapter = this.getAdapterForSession(session.id);
+      adapter.validateApiKey();
 
       // Must be in chapter_review state
       if (session.state !== 'chapter_review') {
@@ -927,6 +978,168 @@ export class AuthoringService {
       await this.saveSession(session);
       return session;
     }
+
+    /**
+     * Update the AI configuration for an in-progress session.
+     * Only allowed when the session is in one of AI_CONFIG_UPDATABLE_STATES.
+     * Creates a new ephemeral adapter, replaces the old one, and updates aiConfigMeta.
+     * Requirements: 3.1, 3.2, 3.3
+     */
+    async updateAiConfig(
+      sessionId: string,
+      ephemeralAiConfig: EphemeralAiConfig,
+    ): Promise<AuthoringSession> {
+      const session = await this.getSession(sessionId);
+      if (!session) {
+        throw new Error(`Session not found: ${sessionId}`);
+      }
+
+      if (!AI_CONFIG_UPDATABLE_STATES.includes(session.state)) {
+        throw new Error(
+          `Cannot update AI config in state '${session.state}'`,
+        );
+      }
+
+      // Create new ephemeral adapter and replace the old one
+      const adapter = new LLMAdapter({
+        apiKey: ephemeralAiConfig.apiKey,
+        endpoint: ephemeralAiConfig.endpoint,
+        model: ephemeralAiConfig.model,
+        provider: ephemeralAiConfig.provider,
+      });
+      this.sessionAdapters.set(sessionId, adapter);
+
+      // Update config metadata (no secrets persisted)
+      session.aiConfigMeta = {
+        provider: ephemeralAiConfig.provider,
+        model: ephemeralAiConfig.model,
+      };
+
+      await this.saveSession(session);
+      return session;
+    }
+
+    /**
+     * Retry only the failed chapters from a parallel batch.
+     * Requires session in chapter_review with non-empty parallelBatch.failedIndices.
+     * On success: merges new chapters, clears retried indices from failedIndices.
+     * On all-fail: transitions to failed, preserves existing successful chapters.
+     * Requirements: 4.1, 4.2, 4.3, 4.4
+     */
+    async retryFailedChapters(sessionId: string): Promise<AuthoringSession> {
+      const session = await this.getSession(sessionId);
+      if (!session) {
+        throw new Error(`Session not found: ${sessionId}`);
+      }
+
+      // Early API key validation
+      const adapter = this.getAdapterForSession(session.id);
+      adapter.validateApiKey();
+
+      if (session.state !== 'chapter_review') {
+        throw new Error(
+          `Cannot retry failed chapters in state '${session.state}', expected 'chapter_review'`,
+        );
+      }
+
+      const failedIndices = session.parallelBatch?.failedIndices;
+      if (!failedIndices || failedIndices.length === 0) {
+        throw new Error('No failed chapters to retry');
+      }
+
+      const config = await this.configService.getById(session.configId);
+      if (!config) {
+        throw new Error(`Config not found: ${session.configId}`);
+      }
+
+      const promptBuilder = new PromptBuilder();
+      const phaseParser = new PhaseParser();
+      const approvedOutline = (session.outlineOutput?.authorEdited ?? session.outlineOutput?.llmOriginal) as import('@murder-mystery/shared').ScriptOutline;
+      const approvedPlan = (session.planOutput?.authorEdited ?? session.planOutput?.llmOriginal) as import('@murder-mystery/shared').ScriptPlan | undefined;
+
+      // Use chapters before the batch as context (same as generateParallelBatch)
+      const minBatchIndex = Math.min(...failedIndices);
+      const previousChapters = session.chapters.filter(ch => ch.index < minBatchIndex);
+
+      // Fire all retry LLM calls in parallel
+      const results = await Promise.allSettled(
+        failedIndices.map(async (chapterIndex) => {
+          const chapterType = this.getChapterType(chapterIndex, config.playerCount);
+          const request = promptBuilder.buildChapterPrompt(
+            config,
+            approvedOutline,
+            chapterType,
+            chapterIndex,
+            previousChapters,
+            approvedPlan,
+          );
+          const response = await this.getAdapterForSession(session.id).send(request);
+          const chapter = phaseParser.parseChapter(response.content, chapterType);
+          chapter.index = chapterIndex;
+          if (chapterType === 'player_handbook') {
+            chapter.characterId = `player-${chapterIndex}`;
+          }
+          return { chapter, tokenUsage: response.tokenUsage };
+        }),
+      );
+
+      // Collect results and sum token usage from successful retries
+      const stillFailed: number[] = [];
+      const sumTokens = { prompt: 0, completion: 0, total: 0 };
+      let hasSuccessful = false;
+
+      for (let i = 0; i < results.length; i++) {
+        const result = results[i];
+        const chapterIndex = failedIndices[i];
+        if (result.status === 'fulfilled') {
+          const { chapter, tokenUsage } = result.value;
+          // Merge into chapters list
+          const existingIdx = session.chapters.findIndex(ch => ch.index === chapterIndex);
+          if (existingIdx >= 0) {
+            session.chapters[existingIdx] = chapter;
+          } else {
+            session.chapters.push(chapter);
+          }
+          // Move from failedIndices to completedIndices
+          session.parallelBatch!.completedIndices.push(chapterIndex);
+          if (tokenUsage) {
+            sumTokens.prompt += tokenUsage.prompt;
+            sumTokens.completion += tokenUsage.completion;
+            sumTokens.total += tokenUsage.total;
+            hasSuccessful = true;
+          }
+        } else {
+          stillFailed.push(chapterIndex);
+        }
+      }
+
+      // Assign summed token usage from successful retries (Requirement 1.3)
+      if (hasSuccessful) {
+        session.lastStepTokens = sumTokens;
+      }
+
+      // Update failedIndices to only contain still-failed chapters
+      session.parallelBatch!.failedIndices = stillFailed;
+
+      // If ALL retries failed again, transition to failed state, preserve successful chapters
+      if (stillFailed.length === failedIndices.length) {
+        session.state = 'failed';
+        session.failureInfo = {
+          phase: 'chapter',
+          error: `All retry chapters failed: [${stillFailed.join(', ')}]`,
+          failedAt: new Date(),
+          retryFromState: 'chapter_review',
+        };
+        await this.saveSession(session);
+        return session;
+      }
+
+      // Some or all succeeded — stay in chapter_review
+      await this.saveSession(session);
+      return session;
+    }
+
+
 
   /**
    * Assemble all approved chapters into a complete Script object and store it.
@@ -1029,13 +1242,13 @@ export class AuthoringService {
     await pool.execute(
       `INSERT INTO authoring_sessions
         (id, config_id, mode, state, plan_output, outline_output, chapters, chapter_edits,
-         current_chapter_index, total_chapters, parallel_batch, script_id, ai_config_meta, failure_info, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         current_chapter_index, total_chapters, parallel_batch, script_id, ai_config_meta, failure_info, last_step_tokens, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         row.id, row.config_id, row.mode, row.state,
         row.plan_output, row.outline_output, row.chapters, row.chapter_edits,
         row.current_chapter_index, row.total_chapters, row.parallel_batch, row.script_id,
-        row.ai_config_meta, row.failure_info,
+        row.ai_config_meta, row.failure_info, row.last_step_tokens,
         row.created_at, row.updated_at,
       ],
     );
@@ -1054,12 +1267,12 @@ export class AuthoringService {
       `UPDATE authoring_sessions SET
         config_id = ?, mode = ?, state = ?, plan_output = ?, outline_output = ?,
         chapters = ?, chapter_edits = ?, current_chapter_index = ?, total_chapters = ?,
-        parallel_batch = ?, script_id = ?, ai_config_meta = ?, failure_info = ?, updated_at = ?
+        parallel_batch = ?, script_id = ?, ai_config_meta = ?, failure_info = ?, last_step_tokens = ?, updated_at = ?
        WHERE id = ?`,
       [
         row.config_id, row.mode, row.state, row.plan_output, row.outline_output,
         row.chapters, row.chapter_edits, row.current_chapter_index, row.total_chapters,
-        row.parallel_batch, row.script_id, row.ai_config_meta, row.failure_info, row.updated_at, row.id,
+        row.parallel_batch, row.script_id, row.ai_config_meta, row.failure_info, row.last_step_tokens, row.updated_at, row.id,
       ],
     );
   }
@@ -1081,6 +1294,7 @@ export class AuthoringService {
       script_id: session.scriptId ?? null,
       ai_config_meta: session.aiConfigMeta ? JSON.stringify(session.aiConfigMeta) : null,
       failure_info: session.failureInfo ? JSON.stringify(session.failureInfo) : null,
+      last_step_tokens: session.lastStepTokens ? JSON.stringify(session.lastStepTokens) : null,
       created_at: session.createdAt,
       updated_at: session.updatedAt,
     };
@@ -1121,6 +1335,7 @@ export class AuthoringService {
     const failureInfo = parseJson(row.failure_info);
     const parallelBatch = parseJson(row.parallel_batch);
     const aiConfigMeta = parseJson(row.ai_config_meta);
+    const lastStepTokens = parseJson(row.last_step_tokens);
 
     return {
       id: row.id as string,
@@ -1137,8 +1352,10 @@ export class AuthoringService {
       scriptId: row.script_id as string | undefined,
       aiConfigMeta: aiConfigMeta as import('@murder-mystery/shared').AiConfigMeta | undefined,
       failureInfo: parseDateFields(failureInfo) as FailureInfo | undefined,
+      lastStepTokens: lastStepTokens as import('@murder-mystery/shared').TokenUsage | undefined,
       createdAt: new Date(row.created_at as string | Date),
       updatedAt: new Date(row.updated_at as string | Date),
     };
   }
+
 }

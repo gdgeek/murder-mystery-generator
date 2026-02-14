@@ -24,10 +24,11 @@ describe('AI Status Routes', () => {
 
   describe('GET /api/ai-status', () => {
     it('returns configured status when AI is configured', async () => {
-      vi.mocked(AiStatusService.prototype.getStatus).mockReturnValue({
+      vi.mocked(AiStatusService.prototype.getStatusVerified).mockResolvedValue({
         status: 'configured',
         provider: 'doubao',
         model: 'doubao-seed-1-8-251228',
+        verified: true,
       });
 
       const res = await request(app).get('/api/ai-status');
@@ -37,11 +38,12 @@ describe('AI Status Routes', () => {
         status: 'configured',
         provider: 'doubao',
         model: 'doubao-seed-1-8-251228',
+        verified: true,
       });
     });
 
     it('returns unconfigured status when AI is not configured', async () => {
-      vi.mocked(AiStatusService.prototype.getStatus).mockReturnValue({
+      vi.mocked(AiStatusService.prototype.getStatusVerified).mockResolvedValue({
         status: 'unconfigured',
       });
 
@@ -52,9 +54,9 @@ describe('AI Status Routes', () => {
     });
 
     it('returns 500 when service throws', async () => {
-      vi.mocked(AiStatusService.prototype.getStatus).mockImplementation(() => {
-        throw new Error('Unexpected error');
-      });
+      vi.mocked(AiStatusService.prototype.getStatusVerified).mockRejectedValue(
+        new Error('Unexpected error'),
+      );
 
       const res = await request(app).get('/api/ai-status');
 

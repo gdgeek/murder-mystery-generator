@@ -4,6 +4,7 @@
  */
 
 import type { AiConfigMeta } from './ai-config';
+import type { TokenUsage } from './script';
 
 // ─── 枚举与联合类型 ───
 
@@ -154,6 +155,7 @@ export interface AuthoringSession {
   parallelBatch?: ParallelBatch;  // 当前并行生成批次
   scriptId?: string;              // 完成后关联的 Script ID
   aiConfigMeta?: AiConfigMeta;  // 临时 AI 配置元信息（不含 apiKey）
+  lastStepTokens?: TokenUsage;  // 最近一次 LLM 调用的 token 用量
   failureInfo?: FailureInfo;
   createdAt: Date;
   updatedAt: Date;

@@ -24,6 +24,7 @@ vi.mock('../../adapters/llm-adapter', () => ({
     send: vi.fn(),
     getProviderName: () => opts?.provider ?? 'mock',
     getDefaultModel: () => opts?.model ?? 'mock-model',
+    validateApiKey: vi.fn(),
     _isEphemeral: true,
   })),
 }));
@@ -43,6 +44,7 @@ function makeMockLLM(name = 'default'): ILLMAdapter {
     send: vi.fn(),
     getProviderName: () => `${name}-provider`,
     getDefaultModel: () => `${name}-model`,
+    validateApiKey: vi.fn(),
   };
 }
 

@@ -150,3 +150,166 @@ describe('POST /api/authoring-sessions — ephemeral AI config', () => {
     expect(res.status).toBe(404);
   });
 });
+
+describe('PUT /api/authoring-sessions/:id/ai-config', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns 200 with updated session on success', async () => {
+    const updatedSession = { ...mockSession, state: 'failed', aiConfigMeta: { provider: 'openai', model: 'gpt-4' } };
+    vi.mocked(AuthoringService.prototype.updateAiConfig).mockResolvedValue(updatedSession as any);
+
+    const res = await request(app)
+      .put('/api/authoring-sessions/session-1/ai-config')
+      .send({ ephemeralAiConfig: validConfig });
+
+    expect(res.status).toBe(200);
+    expect(res.body.id).toBe('session-1');
+    expect(AuthoringService.prototype.updateAiConfig).toHaveBeenCalledWith('session-1', validConfig);
+  });
+
+  it('returns 400 when ephemeralAiConfig is missing', async () => {
+    const res = await request(app)
+      .put('/api/authoring-sessions/session-1/ai-config')
+      .send({});
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain('ephemeralAiConfig is required');
+    expect(AuthoringService.prototype.updateAiConfig).not.toHaveBeenCalled();
+  });
+
+  it('returns 400 when ephemeralAiConfig validation fails', async () => {
+    const res = await request(app)
+      .put('/api/authoring-sessions/session-1/ai-config')
+      .send({
+        ephemeralAiConfig: {
+          provider: 'openai',
+          apiKey: '',
+          endpoint: 'not-a-url',
+          model: '',
+        },
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('Validation failed');
+    expect(res.body.details).toBeDefined();
+    expect(AuthoringService.prototype.updateAiConfig).not.toHaveBeenCalled();
+  });
+
+  it('returns 404 when session is not found', async () => {
+    vi.mocked(AuthoringService.prototype.updateAiConfig).mockRejectedValue(
+      new Error('Session not found: session-999'),
+    );
+
+    const res = await request(app)
+      .put('/api/authoring-sessions/session-999/ai-config')
+      .send({ ephemeralAiConfig: validConfig });
+
+    expect(res.status).toBe(404);
+    expect(res.body.error).toContain('Session not found');
+  });
+
+  it('returns 409 when session state does not allow AI config update', async () => {
+    vi.mocked(AuthoringService.prototype.updateAiConfig).mockRejectedValue(
+      new Error("Cannot update AI config in state 'planning'"),
+    );
+
+    const res = await request(app)
+      .put('/api/authoring-sessions/session-1/ai-config')
+      .send({ ephemeralAiConfig: validConfig });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toContain('Cannot update AI config in state');
+  });
+
+  it('returns 500 on unexpected errors', async () => {
+    vi.mocked(AuthoringService.prototype.updateAiConfig).mockRejectedValue(
+      new Error('Database connection failed'),
+    );
+
+    const res = await request(app)
+      .put('/api/authoring-sessions/session-1/ai-config')
+      .send({ ephemeralAiConfig: validConfig });
+
+    expect(res.status).toBe(500);
+    expect(res.body.error).toContain('Database connection failed');
+  });
+});
+
+
+describe('POST /api/authoring-sessions/:id/retry-failed-chapters', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns 200 with updated session on success', async () => {
+    const updatedSession = {
+      ...mockSession,
+      state: 'chapter_review',
+      chapters: [{ index: 0, content: 'ch0' }, { index: 1, content: 'ch1' }],
+      parallelBatch: { failedIndices: [], completedIndices: [0, 1] },
+    };
+    vi.mocked(AuthoringService.prototype.retryFailedChapters).mockResolvedValue(updatedSession as any);
+
+    const res = await request(app)
+      .post('/api/authoring-sessions/session-1/retry-failed-chapters')
+      .send();
+
+    expect(res.status).toBe(200);
+    expect(res.body.state).toBe('chapter_review');
+    expect(AuthoringService.prototype.retryFailedChapters).toHaveBeenCalledWith('session-1');
+  });
+
+  it('returns 400 when no failed chapters exist', async () => {
+    vi.mocked(AuthoringService.prototype.retryFailedChapters).mockRejectedValue(
+      new Error('No failed chapters to retry'),
+    );
+
+    const res = await request(app)
+      .post('/api/authoring-sessions/session-1/retry-failed-chapters')
+      .send();
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain('No failed chapters');
+  });
+
+  it('returns 400 when session is not in chapter_review state', async () => {
+    vi.mocked(AuthoringService.prototype.retryFailedChapters).mockRejectedValue(
+      new Error("Cannot retry failed chapters in state 'planning', expected 'chapter_review'"),
+    );
+
+    const res = await request(app)
+      .post('/api/authoring-sessions/session-1/retry-failed-chapters')
+      .send();
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain('Cannot retry failed chapters in state');
+  });
+
+  it('returns 404 when session is not found', async () => {
+    vi.mocked(AuthoringService.prototype.retryFailedChapters).mockRejectedValue(
+      new Error('Session not found: session-999'),
+    );
+
+    const res = await request(app)
+      .post('/api/authoring-sessions/session-999/retry-failed-chapters')
+      .send();
+
+    expect(res.status).toBe(404);
+    expect(res.body.error).toContain('Session not found');
+  });
+
+  it('returns 500 on unexpected errors', async () => {
+    vi.mocked(AuthoringService.prototype.retryFailedChapters).mockRejectedValue(
+      new Error('Database connection failed'),
+    );
+
+    const res = await request(app)
+      .post('/api/authoring-sessions/session-1/retry-failed-chapters')
+      .send();
+
+    expect(res.status).toBe(500);
+    expect(res.body.error).toContain('Database connection failed');
+  });
+});

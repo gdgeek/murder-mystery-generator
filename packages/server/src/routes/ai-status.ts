@@ -35,9 +35,9 @@ const aiStatusService = new AiStatusService();
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.get('/', (_req: Request, res: Response) => {
+router.get('/', async (_req: Request, res: Response) => {
   try {
-    const status = aiStatusService.getStatus();
+    const status = await aiStatusService.getStatusVerified();
     res.json(status);
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });

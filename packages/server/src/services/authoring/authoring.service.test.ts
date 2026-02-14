@@ -23,6 +23,7 @@ function makeMockLLM(): ILLMAdapter {
     send: vi.fn(),
     getProviderName: () => 'mock',
     getDefaultModel: () => 'mock-model',
+    validateApiKey: vi.fn(),
   };
 }
 
@@ -306,6 +307,7 @@ function makeAdvanceService(overrides?: {
     send: sendFn as ILLMAdapter['send'],
     getProviderName: () => 'mock',
     getDefaultModel: () => 'mock-model',
+    validateApiKey: () => {},
   };
   const skillService = new SkillService();
   const generatorService = new GeneratorService(llm, skillService);
@@ -589,7 +591,8 @@ describe('AuthoringService.advance', () => {
 
   it('saves session to DB after advance', async () => {
     mockPool.execute.mockResolvedValueOnce([[makeSessionRow()], []]);
-    mockPool.execute.mockResolvedValueOnce([[], []]);
+    mockPool.execute.mockResolvedValueOnce([[], []]); // checkpoint save (output persisted before state transition)
+    mockPool.execute.mockResolvedValueOnce([[], []]); // final save (state transition persisted)
 
     const llmSend = vi.fn().mockResolvedValue({
       content: VALID_PLAN_JSON,
@@ -600,9 +603,13 @@ describe('AuthoringService.advance', () => {
     const { service } = makeAdvanceService({ llmSend });
     await service.advance('sess-1');
 
-    // Second call should be the UPDATE
-    expect(mockPool.execute).toHaveBeenCalledTimes(2);
-    const [updateQuery] = mockPool.execute.mock.calls[1];
+    // 3 calls: SELECT + checkpoint UPDATE + final UPDATE
+    expect(mockPool.execute).toHaveBeenCalledTimes(3);
+    // Checkpoint save (output persisted before state transition)
+    const [checkpointQuery] = mockPool.execute.mock.calls[1];
+    expect(checkpointQuery).toContain('UPDATE authoring_sessions SET');
+    // Final save (state transition persisted)
+    const [updateQuery] = mockPool.execute.mock.calls[2];
     expect(updateQuery).toContain('UPDATE authoring_sessions SET');
   });
 });
@@ -1207,7 +1214,8 @@ describe('AuthoringService.regenerateChapter', () => {
     const chapters = [{ index: 0, type: 'dm_handbook', content: { overview: 'DM' }, generatedAt: '2025-01-15T10:00:00.000Z' }];
 
     mockPool.execute.mockResolvedValueOnce([[makeChapterReviewRow(0, chapters)], []]);
-    mockPool.execute.mockResolvedValueOnce([[], []]); // saveSession
+    mockPool.execute.mockResolvedValueOnce([[], []]); // checkpoint save (output persisted before state transition)
+    mockPool.execute.mockResolvedValueOnce([[], []]); // final save (state transition persisted)
 
     const llmSend = vi.fn().mockResolvedValue({
       content: JSON.stringify({ overview: 'New DM' }),
@@ -1218,9 +1226,13 @@ describe('AuthoringService.regenerateChapter', () => {
     const { service } = makeAdvanceService({ llmSend });
     await service.regenerateChapter('sess-1', 0);
 
-    // Second call should be the UPDATE
-    expect(mockPool.execute).toHaveBeenCalledTimes(2);
-    const [updateQuery] = mockPool.execute.mock.calls[1];
+    // 3 calls: SELECT + checkpoint UPDATE + final UPDATE
+    expect(mockPool.execute).toHaveBeenCalledTimes(3);
+    // Checkpoint save (output persisted before state transition)
+    const [checkpointQuery] = mockPool.execute.mock.calls[1];
+    expect(checkpointQuery).toContain('UPDATE authoring_sessions SET');
+    // Final save (state transition persisted)
+    const [updateQuery] = mockPool.execute.mock.calls[2];
     expect(updateQuery).toContain('UPDATE authoring_sessions SET');
   });
 });
@@ -1553,5 +1565,358 @@ describe('AuthoringService.assembleScript', () => {
     expect(scriptContent.playerHandbooks[1].characterName).toBe('Player 2');
     expect(scriptContent.playerHandbooks[2].characterName).toBe('Player 3');
     expect(scriptContent.playerHandbooks[3].characterName).toBe('Player 4');
+  });
+});
+
+// ─── updateAiConfig Tests (Task 4.2) ───
+
+describe('AuthoringService.updateAiConfig', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockPool.execute.mockResolvedValue([[], []]);
+  });
+
+  const ephemeralConfig = {
+    provider: 'anthropic',
+    apiKey: 'sk-new-key',
+    endpoint: 'https://api.anthropic.com/v1/messages',
+    model: 'claude-3-sonnet',
+  };
+
+  it('updates AI config when session is in failed state', async () => {
+    mockPool.execute.mockResolvedValueOnce([[makeSessionRow({ state: 'failed', failure_info: JSON.stringify({ phase: 'plan', error: 'timeout', failedAt: '2025-01-15T10:00:00.000Z', retryFromState: 'planning' }) })], []]);
+    mockPool.execute.mockResolvedValueOnce([[], []]); // saveSession
+
+    const { service } = makeAdvanceService();
+    const result = await service.updateAiConfig('sess-1', ephemeralConfig);
+
+    expect(result.aiConfigMeta).toEqual({ provider: 'anthropic', model: 'claude-3-sonnet' });
+  });
+
+  it('updates AI config when session is in plan_review state', async () => {
+    mockPool.execute.mockResolvedValueOnce([[makeSessionRow({ state: 'plan_review' })], []]);
+    mockPool.execute.mockResolvedValueOnce([[], []]); // saveSession
+
+    const { service } = makeAdvanceService();
+    const result = await service.updateAiConfig('sess-1', ephemeralConfig);
+
+    expect(result.aiConfigMeta).toEqual({ provider: 'anthropic', model: 'claude-3-sonnet' });
+  });
+
+  it('updates AI config when session is in design_review state', async () => {
+    mockPool.execute.mockResolvedValueOnce([[makeSessionRow({ state: 'design_review' })], []]);
+    mockPool.execute.mockResolvedValueOnce([[], []]); // saveSession
+
+    const { service } = makeAdvanceService();
+    const result = await service.updateAiConfig('sess-1', ephemeralConfig);
+
+    expect(result.aiConfigMeta).toEqual({ provider: 'anthropic', model: 'claude-3-sonnet' });
+  });
+
+  it('updates AI config when session is in chapter_review state', async () => {
+    mockPool.execute.mockResolvedValueOnce([[makeSessionRow({ state: 'chapter_review' })], []]);
+    mockPool.execute.mockResolvedValueOnce([[], []]); // saveSession
+
+    const { service } = makeAdvanceService();
+    const result = await service.updateAiConfig('sess-1', ephemeralConfig);
+
+    expect(result.aiConfigMeta).toEqual({ provider: 'anthropic', model: 'claude-3-sonnet' });
+  });
+
+  it('updates AI config when session is in draft state', async () => {
+    mockPool.execute.mockResolvedValueOnce([[makeSessionRow({ state: 'draft' })], []]);
+    mockPool.execute.mockResolvedValueOnce([[], []]); // saveSession
+
+    const { service } = makeAdvanceService();
+    const result = await service.updateAiConfig('sess-1', ephemeralConfig);
+
+    expect(result.aiConfigMeta).toEqual({ provider: 'anthropic', model: 'claude-3-sonnet' });
+  });
+
+  it('saves session to DB after updating config', async () => {
+    mockPool.execute.mockResolvedValueOnce([[makeSessionRow({ state: 'failed', failure_info: JSON.stringify({ phase: 'plan', error: 'timeout', failedAt: '2025-01-15T10:00:00.000Z', retryFromState: 'planning' }) })], []]);
+    mockPool.execute.mockResolvedValueOnce([[], []]); // saveSession
+
+    const { service } = makeAdvanceService();
+    await service.updateAiConfig('sess-1', ephemeralConfig);
+
+    expect(mockPool.execute).toHaveBeenCalledTimes(2);
+    const [updateQuery] = mockPool.execute.mock.calls[1];
+    expect(updateQuery).toContain('UPDATE authoring_sessions SET');
+  });
+
+  it('replaces session adapter so subsequent calls use new config', async () => {
+    mockPool.execute.mockResolvedValueOnce([[makeSessionRow({ state: 'draft' })], []]);
+    mockPool.execute.mockResolvedValueOnce([[], []]); // saveSession
+
+    const { service } = makeAdvanceService();
+    await service.updateAiConfig('sess-1', ephemeralConfig);
+
+    const adapter = service.getAdapterForSession('sess-1');
+    expect(adapter).toBeDefined();
+    expect(adapter.getProviderName()).toBe('anthropic');
+  });
+
+  it('throws when session not found', async () => {
+    mockPool.execute.mockResolvedValueOnce([[], []]); // getSession returns empty
+
+    const { service } = makeAdvanceService();
+
+    await expect(service.updateAiConfig('nonexistent', ephemeralConfig))
+      .rejects.toThrow('Session not found: nonexistent');
+  });
+
+  it('throws when session is in planning state (not updatable)', async () => {
+    mockPool.execute.mockResolvedValueOnce([[makeSessionRow({ state: 'planning' })], []]);
+
+    const { service } = makeAdvanceService();
+
+    await expect(service.updateAiConfig('sess-1', ephemeralConfig))
+      .rejects.toThrow("Cannot update AI config in state 'planning'");
+  });
+
+  it('throws when session is in designing state (not updatable)', async () => {
+    mockPool.execute.mockResolvedValueOnce([[makeSessionRow({ state: 'designing' })], []]);
+
+    const { service } = makeAdvanceService();
+
+    await expect(service.updateAiConfig('sess-1', ephemeralConfig))
+      .rejects.toThrow("Cannot update AI config in state 'designing'");
+  });
+
+  it('throws when session is in executing state (not updatable)', async () => {
+    mockPool.execute.mockResolvedValueOnce([[makeSessionRow({ state: 'executing' })], []]);
+
+    const { service } = makeAdvanceService();
+
+    await expect(service.updateAiConfig('sess-1', ephemeralConfig))
+      .rejects.toThrow("Cannot update AI config in state 'executing'");
+  });
+
+  it('throws when session is in completed state (not updatable)', async () => {
+    mockPool.execute.mockResolvedValueOnce([[makeSessionRow({ state: 'completed' })], []]);
+
+    const { service } = makeAdvanceService();
+
+    await expect(service.updateAiConfig('sess-1', ephemeralConfig))
+      .rejects.toThrow("Cannot update AI config in state 'completed'");
+  });
+});
+
+// ─── retryFailedChapters Tests (Task 5.1) ───
+
+describe('AuthoringService.retryFailedChapters', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockPool.execute.mockResolvedValue([[], []]);
+  });
+
+  const outlineOutput = {
+    phase: 'outline',
+    llmOriginal: JSON.parse(VALID_OUTLINE_JSON),
+    edits: [],
+    approved: true,
+    generatedAt: '2025-01-15T10:00:00.000Z',
+  };
+
+  function makeChapterReviewWithFailures(failedIndices: number[], completedIndices: number[], chapters: unknown[]) {
+    return makeSessionRow({
+      state: 'chapter_review',
+      outline_output: JSON.stringify(outlineOutput),
+      chapters: JSON.stringify(chapters),
+      current_chapter_index: completedIndices[0] ?? 0,
+      total_chapters: 7,
+      parallel_batch: JSON.stringify({
+        chapterIndices: [...completedIndices, ...failedIndices],
+        completedIndices,
+        failedIndices,
+        reviewedIndices: [],
+      }),
+    });
+  }
+
+  it('throws when session not found', async () => {
+    mockPool.execute.mockResolvedValueOnce([[], []]);
+    const { service } = makeAdvanceService();
+
+    await expect(service.retryFailedChapters('nonexistent'))
+      .rejects.toThrow('Session not found: nonexistent');
+  });
+
+  it('throws when session is not in chapter_review state', async () => {
+    mockPool.execute.mockResolvedValueOnce([[makeSessionRow({ state: 'draft' })], []]);
+    const { service } = makeAdvanceService();
+
+    await expect(service.retryFailedChapters('sess-1'))
+      .rejects.toThrow("Cannot retry failed chapters in state 'draft', expected 'chapter_review'");
+  });
+
+  it('throws when no parallelBatch exists', async () => {
+    mockPool.execute.mockResolvedValueOnce([[makeSessionRow({
+      state: 'chapter_review',
+      parallel_batch: null,
+    })], []]);
+    const { service } = makeAdvanceService();
+
+    await expect(service.retryFailedChapters('sess-1'))
+      .rejects.toThrow('No failed chapters to retry');
+  });
+
+  it('throws when failedIndices is empty', async () => {
+    mockPool.execute.mockResolvedValueOnce([[makeSessionRow({
+      state: 'chapter_review',
+      parallel_batch: JSON.stringify({
+        chapterIndices: [1, 2],
+        completedIndices: [1, 2],
+        failedIndices: [],
+        reviewedIndices: [],
+      }),
+    })], []]);
+    const { service } = makeAdvanceService();
+
+    await expect(service.retryFailedChapters('sess-1'))
+      .rejects.toThrow('No failed chapters to retry');
+  });
+
+  it('retries failed chapters and merges successful ones', async () => {
+    const existingChapters = [
+      { index: 0, type: 'dm_handbook', content: { overview: 'DM' }, generatedAt: '2025-01-15T10:00:00.000Z' },
+      { index: 1, type: 'player_handbook', content: { characterId: 'p1' }, generatedAt: '2025-01-15T10:00:00.000Z' },
+    ];
+    // Chapters 2 and 3 failed
+    const row = makeChapterReviewWithFailures([2, 3], [0, 1], existingChapters);
+    // 1. getSession
+    mockPool.execute.mockResolvedValueOnce([[row], []]);
+    // 2. saveSession
+    mockPool.execute.mockResolvedValueOnce([[], []]);
+
+    const llmSend = vi.fn().mockResolvedValue({
+      content: JSON.stringify({ characterId: 'retried', characterName: '重试角色' }),
+      tokenUsage: { prompt: 50, completion: 100, total: 150 },
+      responseTimeMs: 500,
+    });
+
+    const { service } = makeAdvanceService({ llmSend });
+    const result = await service.retryFailedChapters('sess-1');
+
+    expect(result.state).toBe('chapter_review');
+    expect(result.chapters).toHaveLength(4); // 2 existing + 2 retried
+    expect(result.parallelBatch!.failedIndices).toEqual([]);
+    expect(result.parallelBatch!.completedIndices).toContain(2);
+    expect(result.parallelBatch!.completedIndices).toContain(3);
+    expect(llmSend).toHaveBeenCalledTimes(2);
+  });
+
+  it('transitions to failed when all retries fail again', async () => {
+    const existingChapters = [
+      { index: 0, type: 'dm_handbook', content: { overview: 'DM' }, generatedAt: '2025-01-15T10:00:00.000Z' },
+      { index: 1, type: 'player_handbook', content: { characterId: 'p1' }, generatedAt: '2025-01-15T10:00:00.000Z' },
+    ];
+    const row = makeChapterReviewWithFailures([2, 3], [0, 1], existingChapters);
+    // 1. getSession
+    mockPool.execute.mockResolvedValueOnce([[row], []]);
+    // 2. saveSession
+    mockPool.execute.mockResolvedValueOnce([[], []]);
+
+    const llmSend = vi.fn().mockRejectedValue(new Error('LLM timeout'));
+
+    const { service } = makeAdvanceService({ llmSend });
+    const result = await service.retryFailedChapters('sess-1');
+
+    expect(result.state).toBe('failed');
+    expect(result.failureInfo).toBeDefined();
+    expect(result.failureInfo!.phase).toBe('chapter');
+    expect(result.failureInfo!.error).toContain('All retry chapters failed');
+    // Existing successful chapters are preserved
+    expect(result.chapters).toHaveLength(2);
+    expect(result.chapters[0].index).toBe(0);
+    expect(result.chapters[1].index).toBe(1);
+  });
+
+  it('handles partial retry success — keeps still-failed in failedIndices', async () => {
+    const existingChapters = [
+      { index: 0, type: 'dm_handbook', content: { overview: 'DM' }, generatedAt: '2025-01-15T10:00:00.000Z' },
+    ];
+    const row = makeChapterReviewWithFailures([1, 2, 3], [0], existingChapters);
+    // 1. getSession
+    mockPool.execute.mockResolvedValueOnce([[row], []]);
+    // 2. saveSession
+    mockPool.execute.mockResolvedValueOnce([[], []]);
+
+    // Chapter 1 succeeds, chapter 2 fails, chapter 3 succeeds
+    const llmSend = vi.fn()
+      .mockResolvedValueOnce({
+        content: JSON.stringify({ characterId: 'p1', characterName: '角色1' }),
+        tokenUsage: { prompt: 50, completion: 100, total: 150 },
+        responseTimeMs: 500,
+      })
+      .mockRejectedValueOnce(new Error('LLM error'))
+      .mockResolvedValueOnce({
+        content: JSON.stringify({ characterId: 'p3', characterName: '角色3' }),
+        tokenUsage: { prompt: 60, completion: 110, total: 170 },
+        responseTimeMs: 600,
+      });
+
+    const { service } = makeAdvanceService({ llmSend });
+    const result = await service.retryFailedChapters('sess-1');
+
+    expect(result.state).toBe('chapter_review');
+    expect(result.chapters).toHaveLength(3); // 1 existing + 2 retried
+    expect(result.parallelBatch!.failedIndices).toEqual([2]);
+    expect(result.parallelBatch!.completedIndices).toContain(1);
+    expect(result.parallelBatch!.completedIndices).toContain(3);
+  });
+
+  it('sums token usage from successful retries into lastStepTokens', async () => {
+    const existingChapters = [
+      { index: 0, type: 'dm_handbook', content: { overview: 'DM' }, generatedAt: '2025-01-15T10:00:00.000Z' },
+    ];
+    const row = makeChapterReviewWithFailures([1, 2], [0], existingChapters);
+    // 1. getSession
+    mockPool.execute.mockResolvedValueOnce([[row], []]);
+    // 2. saveSession
+    mockPool.execute.mockResolvedValueOnce([[], []]);
+
+    const llmSend = vi.fn()
+      .mockResolvedValueOnce({
+        content: JSON.stringify({ characterId: 'p1', characterName: '角色1' }),
+        tokenUsage: { prompt: 50, completion: 100, total: 150 },
+        responseTimeMs: 500,
+      })
+      .mockResolvedValueOnce({
+        content: JSON.stringify({ characterId: 'p2', characterName: '角色2' }),
+        tokenUsage: { prompt: 70, completion: 130, total: 200 },
+        responseTimeMs: 600,
+      });
+
+    const { service } = makeAdvanceService({ llmSend });
+    const result = await service.retryFailedChapters('sess-1');
+
+    expect(result.lastStepTokens).toEqual({
+      prompt: 120,
+      completion: 230,
+      total: 350,
+    });
+  });
+
+  it('does not update lastStepTokens when all retries fail', async () => {
+    const existingChapters = [
+      { index: 0, type: 'dm_handbook', content: { overview: 'DM' }, generatedAt: '2025-01-15T10:00:00.000Z' },
+    ];
+    const row = makeChapterReviewWithFailures([1], [0], existingChapters);
+    // Set previous lastStepTokens
+    (row as Record<string, unknown>).last_step_tokens = JSON.stringify({ prompt: 10, completion: 20, total: 30 });
+    // 1. getSession
+    mockPool.execute.mockResolvedValueOnce([[row], []]);
+    // 2. saveSession
+    mockPool.execute.mockResolvedValueOnce([[], []]);
+
+    const llmSend = vi.fn().mockRejectedValue(new Error('LLM error'));
+
+    const { service } = makeAdvanceService({ llmSend });
+    const result = await service.retryFailedChapters('sess-1');
+
+    // lastStepTokens should remain unchanged from before
+    expect(result.lastStepTokens).toEqual({ prompt: 10, completion: 20, total: 30 });
   });
 });

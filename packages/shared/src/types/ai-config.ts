@@ -16,6 +16,7 @@ export interface AiStatusResult {
   status: 'configured' | 'unconfigured';
   provider?: string;
   model?: string;
+  verified?: boolean;
 }
 
 /** AI 配置验证结果 */

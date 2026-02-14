@@ -12,6 +12,8 @@
  * POST   /api/authoring-sessions/:id/phases/:phase/approve    - Approve phase (non-blocking)
  * POST   /api/authoring-sessions/:id/chapters/:chapterIndex/regenerate - Regenerate (non-blocking)
  * POST   /api/authoring-sessions/:id/retry                    - Retry from failed
+ * PUT    /api/authoring-sessions/:id/ai-config                - Update AI config
+ * POST   /api/authoring-sessions/:id/retry-failed-chapters    - Retry failed chapters
  * POST   /api/authoring-sessions/:id/assemble                 - Assemble script
  *
  * Requirements: 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7, 8.8
@@ -299,6 +301,15 @@ router.post('/:id/advance', async (req: Request, res: Response) => {
       return;
     }
 
+    // Validate API key before starting background generation
+    try {
+      const adapter = authoringService.getAdapterForSession(session.id);
+      adapter.validateApiKey();
+    } catch (keyErr) {
+      res.status(400).json({ error: (keyErr as Error).message });
+      return;
+    }
+
     // Return 202 immediately with current state
     res.status(202).json({ sessionId: session.id, state: session.state, message: 'Generation started' });
 
@@ -499,6 +510,15 @@ router.post('/:id/phases/:phase/approve', async (req: Request, res: Response) =>
       }
     }
 
+    // Validate API key before starting background generation
+    try {
+      const adapter = authoringService.getAdapterForSession(session.id);
+      adapter.validateApiKey();
+    } catch (keyErr) {
+      res.status(400).json({ error: (keyErr as Error).message });
+      return;
+    }
+
     // Return 202 immediately
     res.status(202).json({ sessionId: session.id, state: session.state, message: `Approving ${phase}, generation started` });
 
@@ -596,6 +616,15 @@ router.post('/:id/chapters/:chapterIndex/regenerate', async (req: Request, res: 
       return;
     }
 
+    // Validate API key before starting background regeneration
+    try {
+      const adapter = authoringService.getAdapterForSession(session.id);
+      adapter.validateApiKey();
+    } catch (keyErr) {
+      res.status(400).json({ error: (keyErr as Error).message });
+      return;
+    }
+
     // Return 202 immediately
     res.status(202).json({ sessionId: session.id, state: session.state, message: `Regenerating chapter ${chapterIndex}` });
 
@@ -664,6 +693,151 @@ router.post('/:id/retry', async (req: Request, res: Response) => {
       return;
     }
     if (message.includes('Cannot retry')) {
+      res.status(400).json({ error: message });
+      return;
+    }
+    res.status(500).json({ error: message });
+  }
+});
+
+/**
+ * @openapi
+ * /api/authoring-sessions/{id}/ai-config:
+ *   put:
+ *     tags: [创作会话]
+ *     summary: 更换会话 AI 配置
+ *     description: 更换会话的临时 AI 配置。仅在 failed 或 review 状态下允许。
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 会话唯一标识
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/EphemeralAiConfig'
+ *     responses:
+ *       200:
+ *         description: AI 配置更换成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/AuthoringSession'
+ *       400:
+ *         description: 配置校验失败
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: 未找到指定会话
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       409:
+ *         description: 当前状态不允许更换 AI 配置
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.put('/:id/ai-config', async (req: Request, res: Response) => {
+  try {
+    const { ephemeralAiConfig } = req.body;
+
+    if (!ephemeralAiConfig) {
+      res.status(400).json({ error: 'ephemeralAiConfig is required' });
+      return;
+    }
+
+    const validationErrors = validateEphemeralAiConfig(ephemeralAiConfig);
+    if (validationErrors) {
+      res.status(400).json({ error: 'Validation failed', details: validationErrors });
+      return;
+    }
+
+    const session = await authoringService.updateAiConfig(req.params.id, ephemeralAiConfig);
+    res.json(session);
+  } catch (err) {
+    const message = (err as Error).message;
+    if (message.includes('Session not found')) {
+      res.status(404).json({ error: message });
+      return;
+    }
+    if (message.includes('Cannot update AI config in state')) {
+      res.status(409).json({ error: message });
+      return;
+    }
+    res.status(500).json({ error: message });
+  }
+});
+
+/**
+ * @openapi
+ * /api/authoring-sessions/{id}/retry-failed-chapters:
+ *   post:
+ *     tags: [创作会话]
+ *     summary: 重试失败的章节
+ *     description: 仅重新生成并行批量中失败的章节。要求会话处于 chapter_review 状态且存在失败章节。成功后将新章节合并到已有列表中。
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 会话唯一标识
+ *     responses:
+ *       200:
+ *         description: 重试完成，返回更新后的会话
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/AuthoringSession'
+ *       400:
+ *         description: 无失败章节或会话状态不允许重试
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: 未找到指定会话
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.post('/:id/retry-failed-chapters', async (req: Request, res: Response) => {
+  try {
+    const session = await authoringService.retryFailedChapters(req.params.id);
+    res.json(session);
+  } catch (err) {
+    const message = (err as Error).message;
+    if (message.includes('Session not found')) {
+      res.status(404).json({ error: message });
+      return;
+    }
+    if (message.includes('No failed chapters') || message.includes('Cannot retry failed chapters in state')) {
+      res.status(400).json({ error: message });
+      return;
+    }
+    if (message.includes('API Key')) {
       res.status(400).json({ error: message });
       return;
     }

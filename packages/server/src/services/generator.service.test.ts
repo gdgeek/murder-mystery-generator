@@ -42,6 +42,7 @@ function makeMockLLM(content: string): ILLMAdapter {
     send: async () => ({ content, tokenUsage: { prompt: 10, completion: 20, total: 30 }, responseTimeMs: 100 }),
     getProviderName: () => 'mock',
     getDefaultModel: () => 'mock-model',
+    validateApiKey: () => {},
   };
 }
 

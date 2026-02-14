@@ -24,13 +24,6 @@ export class LLMAdapter implements ILLMAdapter {
     this.endpoint = opts?.endpoint ?? process.env.LLM_ENDPOINT ?? 'https://api.openai.com/v1/chat/completions';
     this.model = opts?.model ?? process.env.LLM_MODEL ?? 'gpt-4';
     this.provider = opts?.provider ?? process.env.LLM_PROVIDER ?? 'openai';
-
-    // Validate API key is ASCII-only (Node.js fetch requires ByteString headers)
-    if (this.apiKey && !/^[\x00-\xff]*$/.test(this.apiKey)) {
-      throw new Error(
-        `LLM API Key contains non-ASCII characters. Please check your LLM_API_KEY env var or ephemeral config.`,
-      );
-    }
   }
 
   getProviderName(): string {
@@ -39,6 +32,25 @@ export class LLMAdapter implements ILLMAdapter {
 
   getDefaultModel(): string {
     return this.model;
+  }
+
+  validateApiKey(): void {
+    if (!this.apiKey || this.apiKey.trim() === '') {
+      throw new Error(
+        `[${this.provider}] API Key 未配置。请在 .env 文件中设置 LLM_API_KEY，或通过页面输入临时 AI 配置。`,
+      );
+    }
+    const placeholders = ['YOUR_API_KEY_HERE', 'placeholder', 'your-api-key', 'sk-xxx', 'xxx'];
+    if (placeholders.includes(this.apiKey.trim().toLowerCase()) || placeholders.includes(this.apiKey.trim())) {
+      throw new Error(
+        `[${this.provider}] API Key 仍为占位符（${this.apiKey.slice(0, 6)}...）。请替换为真实的 API Key。`,
+      );
+    }
+    if (!/^[\x00-\xff]*$/.test(this.apiKey)) {
+      throw new Error(
+        `[${this.provider}] API Key 包含非 ASCII 字符，无法用于 HTTP 请求头。请检查 API Key 是否正确。`,
+      );
+    }
   }
 
   /**
@@ -120,7 +132,7 @@ export class LLMAdapter implements ILLMAdapter {
   }
 
   /** Overridable for testing */
-  protected async doFetch(request: LLMRequest, jsonMode = true): Promise<Response> {
+  protected async doFetch(request: LLMRequest, jsonMode = false): Promise<Response> {
     const messages: Array<{ role: string; content: string }> = [];
     if (request.systemPrompt) {
       messages.push({ role: 'system', content: request.systemPrompt });
