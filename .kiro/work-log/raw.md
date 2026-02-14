@@ -71,3 +71,17 @@
 **解决：** 工作日志 tab 的 JS 代码中误用 `$`（querySelector，返回单元素）代替 `$$`（querySelectorAll），导致 forEach 报错，后续健康检查 IIFE 未能执行。将两处 `$('.wl-sw')` 和 `$('.tb')` 改为 `$$`，重启容器后恢复正常。
 **涉及文件：** packages/server/src/routes/ui.ts
 ---
+
+---
+### 2026-02-14 17:00
+**问题：** 从上次会话继续完成 Task 6（Docker 构建约束 steering 规则），提交推送并执行容器内 build + restart
+**解决：** 将已编辑的 `.kiro/steering/dev-conventions.md`（新增约束 #7：Docker 容器部署需先 build 再 restart）和工作日志一起 commit 并 push 到 main。随后在容器内执行 shared + server build，restart 容器，验证健康检查返回正常。
+**涉及文件：** .kiro/steering/dev-conventions.md, .kiro/work-log/raw.md
+---
+
+---
+### 2026-02-14 17:20
+**问题：** UI 页面控制台报错 "Uncaught SyntaxError: Invalid regular expression: missing /"，健康检查一直显示"检查中"
+**解决：** 根本原因是 TypeScript 模板字符串（backtick）会解释转义序列，导致 `renderMd` 中的 `/\*\*(.+?)\*\*/g` 编译后变成无效正则 `/**(.+?)**/g`，`/\n/g` 变成匹配空白。改用 `new RegExp('[*][*](.+?)[*][*]','g')` 和 `new RegExp('\\n','g')` 避免转义丢失。同时修复 onclick 中 `\'none\'` 改为 `&quot;none&quot;`。构建重启后恢复正常。
+**涉及文件：** packages/server/src/routes/ui.ts
+---
