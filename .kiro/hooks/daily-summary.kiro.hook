@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "生成每日工作日记",
+  "description": "手动触发后，读取 .kiro/work-log/raw.md 中前一天的问答记录，生成一份精炼的每日工作总结，保存到 .kiro/work-log/diary/YYYY-MM-DD.md。",
+  "version": "1",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "请执行以下操作生成每日工作日记：\n\n1. 读取 `.kiro/work-log/raw.md` 文件\n2. 提取昨天日期（YYYY-MM-DD）的所有问答记录条目（根据 ### 标题中的日期匹配）\n3. 如果没有找到昨天的记录，告诉用户\"昨天没有工作记录\"\n4. 如果有记录，生成一份工作日记总结，保存到 `.kiro/work-log/diary/YYYY-MM-DD.md`（用昨天的日期命名）\n\n日记格式：\n```\n# 工作日记 YYYY-MM-DD\n\n## 今日概要\n（用 2-3 句话总结今天做了什么）\n\n## 完成事项\n- （列出每个完成的任务，简洁描述）\n\n## 涉及模块\n- （列出今天修改过的主要模块/文件区域）\n\n## 备注\n（如有值得记录的技术决策、踩坑经验等，简要记录；没有则省略此节）\n```\n\n注意：只总结昨天的记录，不要包含其他日期的内容。"
+  }
+}
