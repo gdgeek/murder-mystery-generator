@@ -90,6 +90,10 @@ select option{background:#1e1b4b;color:var(--txt)}
 .det-card i{font-size:1.5rem;color:var(--ac)}
 .det-name{font-size:.82rem;font-weight:600;color:var(--bright)}
 .det-tag{font-size:.68rem;color:var(--dim);background:rgba(255,255,255,.06);padding:.1rem .45rem;border-radius:10px}
+.hist-item{display:flex;align-items:center;gap:.75rem;padding:.65rem .85rem;background:rgba(255,255,255,.03);border:1px solid var(--bdr);border-radius:10px;transition:.2s}
+.hist-item:hover{background:rgba(255,255,255,.06);border-color:rgba(139,92,246,.2)}
+.hist-info{flex:1;min-width:0}.hist-title{font-size:.85rem;font-weight:600;color:var(--bright);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hist-meta{font-size:.7rem;color:var(--dim);margin-top:.15rem}
 </style>
 </head>
 <body>
@@ -99,6 +103,7 @@ select option{background:#1e1b4b;color:var(--txt)}
 <div class="tabs">
   <button class="tb on" data-tab="workflow"><i class="bi bi-diagram-3"></i> 分步创作</button>
   <button class="tb" data-tab="quick"><i class="bi bi-lightning-charge"></i> 快速配置</button>
+  <button class="tb" data-tab="history"><i class="bi bi-clock-history"></i> 历史剧本</button>
   <button class="tb" data-tab="raw"><i class="bi bi-terminal"></i> 原始请求</button>
 </div>
 
@@ -208,7 +213,7 @@ select option{background:#1e1b4b;color:var(--txt)}
 <!-- Step 5: Done -->
 <div class="sp-p" data-step="5" style="display:none">
 <div class="g"><div class="gh"><h3><i class="bi bi-trophy" style="color:var(--warn)"></i>创作完成</h3></div>
-<div class="gb"><div class="br" style="margin-top:0"><button class="btn bp" id="wf-asm"><i class="bi bi-box"></i>组装剧本</button><button class="btn bg" id="wf-rst"><i class="bi bi-arrow-counterclockwise"></i>重新开始</button></div></div>
+<div class="gb"><div class="br" style="margin-top:0"><button class="btn bp" id="wf-asm"><i class="bi bi-box"></i>组装剧本</button><button class="btn bs" id="wf-exp"><i class="bi bi-download"></i>导出剧本</button><button class="btn bg" id="wf-rst"><i class="bi bi-arrow-counterclockwise"></i>重新开始</button></div></div>
 <div class="gf"><pre class="res" id="wf-ar">等待操作...</pre></div></div>
 </div>
 </div><!-- /workflow -->
@@ -231,6 +236,14 @@ select option{background:#1e1b4b;color:var(--txt)}
 <div class="br"><button type="submit" class="btn bp"><i class="bi bi-send"></i>创建</button></div>
 </form></div>
 <div class="gf"><pre class="res" id="q-res">等待提交...</pre></div></div>
+</div>
+
+<!-- Tab: History -->
+<div class="tp" id="tab-history">
+<div class="g"><div class="gh"><h3><i class="bi bi-clock-history"></i>历史剧本</h3><button class="btn bg" id="hist-refresh" style="font-size:.72rem;padding:.3rem .6rem"><i class="bi bi-arrow-clockwise"></i>刷新</button></div>
+<div class="gb">
+  <div id="hist-list" style="display:flex;flex-direction:column;gap:.5rem"><div style="color:var(--dim);font-size:.82rem">点击刷新加载剧本列表...</div></div>
+</div></div>
 </div>
 
 <!-- Tab: Raw -->
@@ -335,8 +348,9 @@ ss($('#wf-cs'),'正在并行生成下一批章节，请稍候...','w');sr($('#wf
 b.disabled=false;b.innerHTML='<i class="bi bi-check-lg"></i>批准章节';poll(hu)});
 
 // Done
-$('#wf-asm').addEventListener('click',async()=>{const b=$('#wf-asm');b.disabled=true;b.innerHTML='<span class="sp"></span>组装中...';const r=await api('POST','/api/authoring-sessions/'+si+'/assemble');sr($('#wf-ar'),r.data,r.ok);b.disabled=false;b.innerHTML='<i class="bi bi-box"></i>组装剧本'});
-$('#wf-rst').addEventListener('click',()=>{sp();ci=null;si=null;clearHash();go(0);['#wf-cr','#wf-sr','#wf-pr','#wf-or','#wf-chr','#wf-ar'].forEach(s=>{$(s).textContent='等待操作...';$(s).className='res'});$('#wf-pc2').value='';$('#wf-oc').value='';$('#wf-cc').value='';$('#wf-sty').value='';$('#wf-cfg-panel').style.display='none';$$('.det-card').forEach(x=>x.classList.remove('on'))});
+$('#wf-asm').addEventListener('click',async()=>{const b=$('#wf-asm');b.disabled=true;b.innerHTML='<span class="sp"></span>组装中...';const r=await api('POST','/api/authoring-sessions/'+si+'/assemble');sr($('#wf-ar'),r.data,r.ok);b.disabled=false;b.innerHTML='<i class="bi bi-box"></i>组装剧本';if(r.ok&&r.data&&r.data.id){$('#wf-exp').dataset.scriptId=r.data.id}});
+$('#wf-exp').addEventListener('click',()=>{const sid=$('#wf-exp').dataset.scriptId;if(sid){window.open(A+'/api/scripts/'+sid+'/export','_blank')}else{alert('请先组装剧本')}});
+$('#wf-rst').addEventListener('click',()=>{sp();ci=null;si=null;clearHash();go(0);['#wf-cr','#wf-sr','#wf-pr','#wf-or','#wf-chr','#wf-ar'].forEach(s=>{$(s).textContent='等待操作...';$(s).className='res'});$('#wf-pc2').value='';$('#wf-oc').value='';$('#wf-cc').value='';$('#wf-sty').value='';$('#wf-cfg-panel').style.display='none';$$('.det-card').forEach(x=>x.classList.remove('on'));delete $('#wf-exp').dataset.scriptId});
 window.retrySession=async function(){const r=await api('POST','/api/authoring-sessions/'+si+'/retry');if(r.ok){await api('POST','/api/authoring-sessions/'+si+'/advance');poll(hu)}};
 
 // Quick config
@@ -374,6 +388,27 @@ async function restore(){
   }catch(e){console.error('restore failed',e)}
 }
 restore();
+
+// History tab
+async function loadHistory(){
+  const el=$('#hist-list');el.innerHTML='<div style="color:var(--dim);font-size:.82rem"><span class="sp"></span> 加载中...</div>';
+  try{
+    const r=await api('GET','/api/scripts/export-all');
+    if(!r.ok){el.innerHTML='<div style="color:var(--err);font-size:.82rem">加载失败</div>';return}
+    if(!r.data||r.data.length===0){el.innerHTML='<div style="color:var(--dim);font-size:.82rem">暂无剧本</div>';return}
+    el.innerHTML='';
+    r.data.forEach(s=>{
+      const d=document.createElement('div');d.className='hist-item';
+      const dt=s.createdAt?new Date(s.createdAt).toLocaleString('zh-CN'):'';
+      d.innerHTML='<div class="hist-info"><div class="hist-title">'+esc(s.title||'未命名')+'</div><div class="hist-meta"><span style="color:var(--ok)">'+esc(s.status)+'</span> · '+esc(dt)+'</div></div><a class="btn bs" href="'+A+s.exportUrl+'" target="_blank" style="font-size:.72rem;padding:.3rem .7rem;text-decoration:none"><i class="bi bi-download"></i>导出</a>';
+      el.appendChild(d);
+    });
+  }catch(e){el.innerHTML='<div style="color:var(--err);font-size:.82rem">网络错误</div>'}
+}
+function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML}
+$('#hist-refresh').addEventListener('click',loadHistory);
+// Auto-load when switching to history tab
+$$('.tb').forEach(b=>{if(b.dataset.tab==='history')b.addEventListener('click',loadHistory)});
 })();
 </script>
 </body>
