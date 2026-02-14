@@ -48,6 +48,9 @@ COPY packages/server/src/db/migrations packages/server/dist/db/migrations
 # Copy routing config
 COPY config/ config/
 
+# Copy work log and diary
+COPY .kiro/work-log/ .kiro/work-log/
+
 ENV NODE_ENV=production
 EXPOSE 3000
 

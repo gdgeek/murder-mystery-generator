@@ -9,4 +9,5 @@ dist
 coverage
 design-kb
 .kiro
+!.kiro/work-log
 .vscode
