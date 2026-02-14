@@ -5,13 +5,13 @@
 
 /** 剧本风格（侦探角色） */
 export enum ScriptStyle {
-  DETECTIVE = 'detective',   // 正统侦探（中年严谨）— 悬疑
-  DRAMA = 'drama',           // 戏影侦探（老年戏骨）— 情感
-  DISCOVER = 'discover',     // 寻迹侦探（少年户外）— 搞笑
-  DESTINY = 'destiny',       // 命运侦探（小女孩）— 浪漫
-  DREAM = 'dream',           // 幻梦侦探（宅男社恐）— 惊悚
-  DIMENSION = 'dimension',   // 赛博侦探（酷飒黑客）— 科幻
-  DEATH = 'death',           // 幽冥侦探（老者阴森）— 恐怖
+  DETECTIVE = 'detective',   // 正统侦探 — 悬疑：严密逻辑推理，冷静克制，证据链环环相扣
+  DRAMA = 'drama',           // 戏影侦探 — 搞笑：谐音梗、无厘头、喜剧反转
+  DISCOVER = 'discover',     // 寻迹侦探 — 探索：多分支多结局，隐藏内容，高可重玩性
+  DESTINY = 'destiny',       // 命运侦探 — 浪漫：命运交织，浪漫情感，宿命羁绊
+  DREAM = 'dream',           // 幻梦侦探 — 叙诡：梦幻叙事，真假不分，叙述性诡计
+  DIMENSION = 'dimension',   // 赛博侦探 — 科幻：全息投影、传送门、太空飞船等高科技设定
+  DEATH = 'death',           // 幽冥侦探 — 恐怖：民俗/日式/哥特/克苏鲁恐怖，充满未知
 }
 
 /** 游戏类型 */

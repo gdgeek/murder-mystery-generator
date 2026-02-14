@@ -131,13 +131,13 @@ export class ConfigForm {
             <label for="style" class="form-label">剧本风格（侦探角色）</label>
             <select class="form-select" id="style">
               <option value="">请选择</option>
-              <option value="${ScriptStyle.DETECTIVE}">正统侦探（中年严谨）— 悬疑</option>
-              <option value="${ScriptStyle.DRAMA}">戏影侦探（老年戏骨）— 情感</option>
-              <option value="${ScriptStyle.DISCOVER}">寻迹侦探（少年户外）— 搞笑</option>
-              <option value="${ScriptStyle.DESTINY}">命运侦探（小女孩）— 浪漫</option>
-              <option value="${ScriptStyle.DREAM}">幻梦侦探（宅男社恐）— 惊悚</option>
-              <option value="${ScriptStyle.DIMENSION}">赛博侦探（酷飒黑客）— 科幻</option>
-              <option value="${ScriptStyle.DEATH}">幽冥侦探（老者阴森）— 恐怖</option>
+              <option value="${ScriptStyle.DETECTIVE}">悬疑 — 正统侦探：严密逻辑推理，证据链环环相扣</option>
+              <option value="${ScriptStyle.DRAMA}">搞笑 — 戏影侦探：谐音梗、无厘头、喜剧反转</option>
+              <option value="${ScriptStyle.DISCOVER}">探索 — 寻迹侦探：多分支多结局，高可重玩性</option>
+              <option value="${ScriptStyle.DESTINY}">浪漫 — 命运侦探：命运交织，宿命羁绊</option>
+              <option value="${ScriptStyle.DREAM}">叙诡 — 幻梦侦探：梦幻叙事，叙述性诡计</option>
+              <option value="${ScriptStyle.DIMENSION}">科幻 — 赛博侦探：全息投影、传送门等高科技</option>
+              <option value="${ScriptStyle.DEATH}">恐怖 — 幽冥侦探：民俗/哥特/克苏鲁，充满未知</option>
             </select>
             <div class="invalid-feedback"></div>
           </div>

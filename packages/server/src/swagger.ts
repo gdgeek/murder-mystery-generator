@@ -20,7 +20,7 @@ import swaggerJsdoc from 'swagger-jsdoc';
  *     ScriptStyle:
  *       type: string
  *       enum: [detective, drama, discover, destiny, dream, dimension, death]
- *       description: 剧本风格（侦探角色）
+ *       description: 剧本风格 — detective悬疑/drama搞笑/discover探索/destiny浪漫/dream叙诡/dimension科幻/death恐怖
  *
  *     GameType:
  *       type: string

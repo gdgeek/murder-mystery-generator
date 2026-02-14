@@ -111,7 +111,7 @@ select option{background:#1e1b4b;color:var(--txt)}
 <div class="sp-p" data-step="0">
 <div class="g"><div class="gh"><h3><i class="bi bi-gear"></i>创建配置</h3><span class="et">POST /api/configs</span></div>
 <div class="gb"><form id="wf-cf">
-<div class="fi" style="margin-bottom:.75rem"><label>风格</label><select id="wf-sty" style="width:100%"><option value="detective">悬疑（Detective 正统侦探）</option><option value="drama">情感（Drama 戏影侦探）</option><option value="discover">搞笑（Discover 寻迹侦探）</option><option value="destiny">浪漫（Destiny 命运侦探）</option><option value="dream">惊悚（Dream 幻梦侦探）</option><option value="dimension">科幻（Dimension 赛博侦探）</option><option value="death">恐怖（Death 幽冥侦探）</option></select></div>
+<div class="fi" style="margin-bottom:.75rem"><label>风格</label><select id="wf-sty" style="width:100%"><option value="detective">悬疑 — 正统侦探：严密逻辑推理，证据链环环相扣</option><option value="drama">搞笑 — 戏影侦探：谐音梗、无厘头、喜剧反转</option><option value="discover">探索 — 寻迹侦探：多分支多结局，高可重玩性</option><option value="destiny">浪漫 — 命运侦探：命运交织，宿命羁绊</option><option value="dream">叙诡 — 幻梦侦探：梦幻叙事，叙述性诡计</option><option value="dimension">科幻 — 赛博侦探：全息投影、传送门等高科技</option><option value="death">恐怖 — 幽冥侦探：民俗/哥特/克苏鲁，充满未知</option></select></div>
 <div class="fg">
   <div class="fi"><label>玩家人数</label><input type="number" id="wf-pc" value="4" min="1" max="6"></div>
   <div class="fi"><label>时长 (小时)</label><input type="number" id="wf-dh" value="3" min="2" max="6"></div>
@@ -186,7 +186,7 @@ select option{background:#1e1b4b;color:var(--txt)}
 <div class="tp" id="tab-quick">
 <div class="g"><div class="gh"><h3><i class="bi bi-lightning-charge"></i>快速创建配置</h3><span class="et">POST /api/configs</span></div>
 <div class="gb"><form id="qf">
-<div class="fi" style="margin-bottom:.75rem"><label>风格</label><select id="q-sty" style="width:100%"><option value="detective">悬疑（Detective 正统侦探）</option><option value="drama">情感（Drama 戏影侦探）</option><option value="discover">搞笑（Discover 寻迹侦探）</option><option value="destiny">浪漫（Destiny 命运侦探）</option><option value="dream">惊悚（Dream 幻梦侦探）</option><option value="dimension">科幻（Dimension 赛博侦探）</option><option value="death">恐怖（Death 幽冥侦探）</option></select></div>
+<div class="fi" style="margin-bottom:.75rem"><label>风格</label><select id="q-sty" style="width:100%"><option value="detective">悬疑 — 正统侦探：严密逻辑推理，证据链环环相扣</option><option value="drama">搞笑 — 戏影侦探：谐音梗、无厘头、喜剧反转</option><option value="discover">探索 — 寻迹侦探：多分支多结局，高可重玩性</option><option value="destiny">浪漫 — 命运侦探：命运交织，宿命羁绊</option><option value="dream">叙诡 — 幻梦侦探：梦幻叙事，叙述性诡计</option><option value="dimension">科幻 — 赛博侦探：全息投影、传送门等高科技</option><option value="death">恐怖 — 幽冥侦探：民俗/哥特/克苏鲁，充满未知</option></select></div>
 <div class="fg">
   <div class="fi"><label>玩家</label><input type="number" id="q-pc" value="4" min="1" max="6"></div>
   <div class="fi"><label>时长</label><input type="number" id="q-dh" value="3" min="2" max="6"></div>
