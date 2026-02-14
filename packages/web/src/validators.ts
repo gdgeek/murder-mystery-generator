@@ -8,6 +8,7 @@ import {
   GameType,
   AgeGroup,
   SettingType,
+  ScriptStyle,
 } from '@murder-mystery/shared';
 import type { CreateConfigInput, SpecialSetting } from '@murder-mystery/shared';
 
@@ -24,6 +25,7 @@ export interface ValidationResult {
 const VALID_GAME_TYPES = Object.values(GameType);
 const VALID_AGE_GROUPS = Object.values(AgeGroup);
 const VALID_SETTING_TYPES = Object.values(SettingType);
+const VALID_STYLES = Object.values(ScriptStyle);
 
 function isInteger(value: unknown): value is number {
   return typeof value === 'number' && Number.isInteger(value);
@@ -102,6 +104,11 @@ export function validateConfigForm(data: Partial<CreateConfigInput>): Validation
   // theme: 非空字符串
   if (!isNonEmptyString(data.theme)) {
     errors.push({ field: 'theme', message: '请输入主题' });
+  }
+
+  // style: 有效枚举值（可选，但如果提供则必须有效）
+  if (data.style && !VALID_STYLES.includes(data.style as ScriptStyle)) {
+    errors.push({ field: 'style', message: '请选择有效的剧本风格' });
   }
 
   // 当 gameType 为 shin_honkaku 时额外校验 specialSetting

@@ -3,7 +3,7 @@
  * Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 3.1, 3.2, 3.3, 3.4
  */
 
-import { GameType, AgeGroup, SettingType } from '@murder-mystery/shared';
+import { GameType, AgeGroup, SettingType, ScriptStyle } from '@murder-mystery/shared';
 import type { CreateConfigInput } from '@murder-mystery/shared';
 import { validateConfigForm } from '../validators';
 import type { ApiClient } from '../api-client';
@@ -127,6 +127,21 @@ export class ConfigForm {
             <div class="invalid-feedback"></div>
           </div>
 
+          <div class="col-md-6">
+            <label for="style" class="form-label">剧本风格（侦探角色）</label>
+            <select class="form-select" id="style">
+              <option value="">请选择</option>
+              <option value="${ScriptStyle.DETECTIVE}">正统侦探（中年严谨）— 悬疑</option>
+              <option value="${ScriptStyle.DRAMA}">戏影侦探（老年戏骨）— 情感</option>
+              <option value="${ScriptStyle.DISCOVER}">寻迹侦探（少年户外）— 搞笑</option>
+              <option value="${ScriptStyle.DESTINY}">命运侦探（小女孩）— 浪漫</option>
+              <option value="${ScriptStyle.DREAM}">幻梦侦探（宅男社恐）— 惊悚</option>
+              <option value="${ScriptStyle.DIMENSION}">赛博侦探（酷飒黑客）— 科幻</option>
+              <option value="${ScriptStyle.DEATH}">幽冥侦探（老者阴森）— 恐怖</option>
+            </select>
+            <div class="invalid-feedback"></div>
+          </div>
+
         </div>
 
         <!-- 特殊设定区域（仅新本格显示） -->
@@ -219,6 +234,7 @@ export class ConfigForm {
       el?.addEventListener('input', () => this.clearFieldError(fieldId));
     }
     form.querySelector<HTMLSelectElement>('#ageGroup')?.addEventListener('change', () => this.clearFieldError('ageGroup'));
+    form.querySelector<HTMLSelectElement>('#style')?.addEventListener('change', () => this.clearFieldError('style'));
 
     // Clear special setting field errors on input
     const settingTextFields = ['settingDescription', 'settingConstraints'];
@@ -267,6 +283,7 @@ export class ConfigForm {
       location: form.querySelector<HTMLInputElement>('#location')!.value.trim(),
       theme: form.querySelector<HTMLInputElement>('#theme')!.value.trim(),
       language: form.querySelector<HTMLInputElement>('#language')!.value.trim() || 'zh',
+      style: form.querySelector<HTMLSelectElement>('#style')!.value as ScriptStyle || undefined,
     };
 
     if (data.gameType === GameType.SHIN_HONKAKU) {

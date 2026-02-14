@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { validateConfigForm, validateSpecialSetting } from './validators';
-import { GameType, AgeGroup, SettingType } from '@murder-mystery/shared';
+import { GameType, AgeGroup, SettingType, ScriptStyle } from '@murder-mystery/shared';
 import type { CreateConfigInput, SpecialSetting } from '@murder-mystery/shared';
 
 /** Helper: returns a fully valid config input */
@@ -147,6 +147,23 @@ describe('validateConfigForm', () => {
     const result = validateConfigForm({ ...validInput(), theme: '' });
     expect(result.valid).toBe(false);
     expect(result.errors).toContainEqual({ field: 'theme', message: '请输入主题' });
+  });
+
+  // style validation
+  it('accepts valid style', () => {
+    const result = validateConfigForm({ ...validInput(), style: ScriptStyle.DETECTIVE });
+    expect(result.valid).toBe(true);
+  });
+
+  it('accepts missing style (optional)', () => {
+    const result = validateConfigForm(validInput());
+    expect(result.valid).toBe(true);
+  });
+
+  it('rejects invalid style', () => {
+    const result = validateConfigForm({ ...validInput(), style: 'invalid' as ScriptStyle });
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContainEqual({ field: 'style', message: '请选择有效的剧本风格' });
   });
 
   // specialSetting conditional validation
