@@ -36,6 +36,13 @@ export interface ScriptPlan {
   coreTrickDirection: string;
   themeTone: string;
   eraAtmosphere: string;
+  /** 新本格独特设定（仅 shin_honkaku 类型生成） */
+  specialSetting?: {
+    settingName: string;
+    settingDescription: string;
+    settingRules: string[];
+    impactOnDeduction: string;
+  };
 }
 
 // ─── 剧本大纲 ───

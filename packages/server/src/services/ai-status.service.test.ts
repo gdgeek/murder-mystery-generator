@@ -136,13 +136,14 @@ describe('AiStatusService', () => {
 
   describe('verify', () => {
     it('returns valid when adapter send succeeds', async () => {
-      const mockSend = vi.fn().mockResolvedValue({
+      const mockSendRaw = vi.fn().mockResolvedValue({
         content: 'Hello',
         tokenUsage: { prompt: 1, completion: 1, total: 2 },
         responseTimeMs: 100,
       });
       vi.mocked(LLMAdapter).mockImplementation(() => ({
-        send: mockSend,
+        send: vi.fn(),
+        sendRaw: mockSendRaw,
         getProviderName: vi.fn().mockReturnValue('openai'),
         getDefaultModel: vi.fn().mockReturnValue('gpt-4'),
       }) as unknown as LLMAdapter);
@@ -165,8 +166,8 @@ describe('AiStatusService', () => {
         model: 'gpt-4',
         provider: 'openai',
       });
-      expect(mockSend).toHaveBeenCalledWith({
-        prompt: 'Hi',
+      expect(mockSendRaw).toHaveBeenCalledWith({
+        prompt: 'Say hi',
         maxTokens: 5,
         temperature: 0,
       });
@@ -174,7 +175,8 @@ describe('AiStatusService', () => {
 
     it('returns invalid with error when adapter send fails', async () => {
       vi.mocked(LLMAdapter).mockImplementation(() => ({
-        send: vi.fn().mockRejectedValue(new Error('Connection refused')),
+        send: vi.fn(),
+        sendRaw: vi.fn().mockRejectedValue(new Error('Connection refused')),
         getProviderName: vi.fn(),
         getDefaultModel: vi.fn(),
       }) as unknown as LLMAdapter);

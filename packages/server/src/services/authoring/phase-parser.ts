@@ -86,6 +86,7 @@ export class PhaseParser implements IPhaseParser {
       coreTrickDirection: data.coreTrickDirection as string,
       themeTone: data.themeTone as string,
       eraAtmosphere: data.eraAtmosphere as string,
+      ...(data.specialSetting ? { specialSetting: data.specialSetting as ScriptPlan['specialSetting'] } : {}),
     };
   }
 

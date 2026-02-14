@@ -349,6 +349,7 @@ export class AuthoringService {
         chapterType,
         chapterIndex,
         previousChapters,
+        (session.planOutput?.authorEdited ?? session.planOutput?.llmOriginal) as import('@murder-mystery/shared').ScriptPlan | undefined,
       );
       const response = await this.getAdapterForSession(session.id).send(request);
       const chapter = phaseParser.parseChapter(response.content, chapterType);
@@ -697,6 +698,7 @@ export class AuthoringService {
     const promptBuilder = new PromptBuilder();
     const phaseParser = new PhaseParser();
     const approvedOutline = (session.outlineOutput?.authorEdited ?? session.outlineOutput?.llmOriginal) as import('@murder-mystery/shared').ScriptOutline;
+    const approvedPlan = (session.planOutput?.authorEdited ?? session.planOutput?.llmOriginal) as import('@murder-mystery/shared').ScriptPlan | undefined;
 
     // All chapters in this batch share the same previousChapters (everything before the batch)
     const minBatchIndex = Math.min(...chapterIndices);
@@ -712,6 +714,7 @@ export class AuthoringService {
           chapterType,
           chapterIndex,
           previousChapters,
+          approvedPlan,
         );
         const response = await this.getAdapterForSession(session.id).send(request);
         const chapter = phaseParser.parseChapter(response.content, chapterType);
@@ -786,6 +789,7 @@ export class AuthoringService {
     const chapterIndex = session.currentChapterIndex;
     const chapterType = this.getChapterType(chapterIndex, config.playerCount);
     const approvedOutline = (session.outlineOutput?.authorEdited ?? session.outlineOutput?.llmOriginal) as import('@murder-mystery/shared').ScriptOutline;
+    const approvedPlan = (session.planOutput?.authorEdited ?? session.planOutput?.llmOriginal) as import('@murder-mystery/shared').ScriptPlan | undefined;
 
     try {
       const previousChapters = session.chapters.filter(ch => ch.index < chapterIndex);
@@ -795,6 +799,7 @@ export class AuthoringService {
         chapterType,
         chapterIndex,
         previousChapters,
+        approvedPlan,
       );
       const response = await this.getAdapterForSession(session.id).send(request);
       const chapter = phaseParser.parseChapter(response.content, chapterType);

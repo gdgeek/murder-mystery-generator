@@ -6,6 +6,7 @@
 import {
   ScriptConfig,
   ScriptStyle,
+  GameType,
   LLMRequest,
   SkillTemplate,
   ScriptPlan,
@@ -39,12 +40,13 @@ export interface IPromptBuilder {
     chapterType: ChapterType,
     chapterIndex: number,
     previousChapters: Chapter[],
+    approvedPlan?: ScriptPlan,
   ): LLMRequest;
 }
 
 /** 构建配置参数描述段落 */
 function buildConfigSection(config: ScriptConfig): string {
-  return `【配置参数】
+  let section = `【配置参数】
 - 玩家人数：${config.playerCount}
 - 游戏时长：${config.durationHours}小时
 - 游戏类型：${config.gameType}
@@ -59,6 +61,16 @@ function buildConfigSection(config: ScriptConfig): string {
 【叙事风格指导】
 ${STYLE_DIRECTIVES[config.style] || STYLE_DIRECTIVES[ScriptStyle.DETECTIVE]}
 请在所有生成内容中严格遵循上述叙事风格，包括语言风格、氛围营造、角色对话语气、线索呈现方式等。`;
+
+  if (config.gameType === GameType.SHIN_HONKAKU) {
+    section += `\n\n【新本格（设定本格）特别说明】
+本剧本为新本格推理类型。新本格的核心特征是：在故事世界中存在一个或多个"独特设定"（如超能力、特殊规则、奇幻元素、叙述性诡计等），这些设定在游戏开始前就会明确告知所有玩家，作为推理的前提条件。所有诡计和推理都必须在这些设定的框架内成立，不能违反已公开的设定规则。`;
+    if (config.specialSetting) {
+      section += `\n用户指定的设定方向：${config.specialSetting.settingDescription}`;
+    }
+  }
+
+  return section;
 }
 
 /** 构建 Skill 模板参考段落 */
@@ -81,32 +93,57 @@ export class PromptBuilder implements IPromptBuilder {
    * Req 3.1: 基于 Config 和匹配的 Skill 模板调用 LLM 生成 ScriptPlan
    */
   buildPlanningPrompt(config: ScriptConfig, skills: SkillTemplate[]): LLMRequest {
-    const systemPrompt = `你是一个专业的剧本杀企划师。请根据给定的配置参数生成一份剧本企划书。
-请严格按照以下JSON格式输出，不要输出任何JSON以外的内容。
+    const isShinHonkaku = config.gameType === GameType.SHIN_HONKAKU;
 
-输出格式：
-{
+    let outputFormat = `{
   "worldOverview": "世界观概述",
   "characters": [
     { "name": "角色名", "role": "角色定位", "relationshipSketch": "关系草图" }
   ],
   "coreTrickDirection": "核心诡计方向",
   "themeTone": "主题基调",
-  "eraAtmosphere": "时代氛围描述"
-}`;
+  "eraAtmosphere": "时代氛围描述"`;
 
-    const prompt = `${buildConfigSection(config)}${buildSkillSection(skills)}
+    if (isShinHonkaku) {
+      outputFormat += `,
+  "specialSetting": {
+    "settingName": "设定名称（如：灵魂交换、时间回溯等）",
+    "settingDescription": "详细描述这个独特设定的内容，包括它如何运作、有什么限制",
+    "settingRules": ["规则1：...", "规则2：...", "规则3：..."],
+    "impactOnDeduction": "说明这个设定如何影响推理过程，玩家需要如何利用/考虑这个设定来推理"
+  }`;
+    }
+    outputFormat += '\n}';
 
-请根据以上配置生成剧本企划书，确保：
+    const systemPrompt = `你是一个专业的剧本杀企划师。请根据给定的配置参数生成一份剧本企划书。
+请严格按照以下JSON格式输出，不要输出任何JSON以外的内容。
+
+输出格式：
+${outputFormat}`;
+
+    let requirements = `请根据以上配置生成剧本企划书，确保：
 1. 角色数量 = ${config.playerCount}
 2. 世界观与时代背景（${config.era}）和地点设定（${config.location}）一致
 3. 核心诡计方向符合游戏类型（${config.gameType}）的特点
 4. 主题基调与目标年龄段（${config.ageGroup}）匹配`;
 
+    if (isShinHonkaku) {
+      requirements += `
+5. 【重要】必须设计一个独特且有趣的"特殊设定"（specialSetting），这是新本格推理的核心。设定应当：
+   - 新颖有创意，不落俗套
+   - 规则清晰明确，玩家能理解
+   - 与诡计设计紧密结合，推理必须依赖这个设定
+   - 设定本身不能直接揭示凶手，而是作为推理的工具/前提`;
+    }
+
+    const prompt = `${buildConfigSection(config)}${buildSkillSection(skills)}
+
+${requirements}`;
+
     return {
       prompt,
       systemPrompt,
-      maxTokens: 4096,
+      maxTokens: isShinHonkaku ? 6144 : 4096,
       temperature: 0.8,
     };
   }
@@ -142,13 +179,22 @@ export class PromptBuilder implements IPromptBuilder {
 - 主题基调：${approvedPlan.themeTone}
 - 时代氛围：${approvedPlan.eraAtmosphere}`;
 
+    const settingSection = approvedPlan.specialSetting
+      ? `\n\n【新本格独特设定 — 游戏开始前公开给所有玩家】
+- 设定名称：${approvedPlan.specialSetting.settingName}
+- 设定描述：${approvedPlan.specialSetting.settingDescription}
+- 设定规则：\n${approvedPlan.specialSetting.settingRules.map((r, i) => `  ${i + 1}. ${r}`).join('\n')}
+- 对推理的影响：${approvedPlan.specialSetting.impactOnDeduction}
+注意：大纲中的所有诡计、线索、分支设计都必须在此设定框架内成立。`
+      : '';
+
     const notesSection = authorNotes
       ? `\n\n【作者备注】\n${authorNotes}`
       : '';
 
     const prompt = `${buildConfigSection(config)}
 
-${planSection}${buildSkillSection(skills)}${notesSection}
+${planSection}${settingSection}${buildSkillSection(skills)}${notesSection}
 
 请根据以上企划书生成详细的剧本大纲，确保：
 1. 时间线覆盖所有关键事件
@@ -176,6 +222,7 @@ ${planSection}${buildSkillSection(skills)}${notesSection}
     chapterType: ChapterType,
     chapterIndex: number,
     previousChapters: Chapter[],
+    approvedPlan?: ScriptPlan,
   ): LLMRequest {
     const chapterLabel = CHAPTER_TYPE_LABELS[chapterType];
 
@@ -184,6 +231,16 @@ ${planSection}${buildSkillSection(skills)}${notesSection}
 
     const outlineSection = `【已批准的剧本大纲】
 ${JSON.stringify(approvedOutline, null, 2)}`;
+
+    // 新本格独特设定注入
+    const settingSection = approvedPlan?.specialSetting
+      ? `\n\n【新本格独特设定 — 游戏开始前公开给所有玩家】
+- 设定名称：${approvedPlan.specialSetting.settingName}
+- 设定描述：${approvedPlan.specialSetting.settingDescription}
+- 设定规则：\n${approvedPlan.specialSetting.settingRules.map((r, i) => `  ${i + 1}. ${r}`).join('\n')}
+- 对推理的影响：${approvedPlan.specialSetting.impactOnDeduction}
+注意：本章节内容必须在此设定框架内成立，不得违反已公开的设定规则。`
+      : '';
 
     // Req 5.7: 包含前序章节内容确保一致性
     const previousSection = previousChapters.length > 0
@@ -212,7 +269,7 @@ ${JSON.stringify(approvedOutline, null, 2)}`;
 
     const prompt = `${buildConfigSection(config)}
 
-${outlineSection}${previousSection}
+${outlineSection}${settingSection}${previousSection}
 
 【当前任务】生成第${chapterIndex + 1}章：${chapterLabel}
 
