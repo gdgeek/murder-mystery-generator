@@ -84,6 +84,12 @@ footer{text-align:center;padding:2rem 1rem;color:var(--dim);font-size:.75rem}
 select option{background:#1e1b4b;color:var(--txt)}
 .rw{display:flex;gap:.5rem;margin-bottom:.5rem}.rw select{width:100px;flex-shrink:0}.rw input{flex:1}
 @media(max-width:480px){.stp{gap:0}.st{font-size:.65rem;padding:.5rem .15rem}.st i{font-size:.85rem}.gb{padding:.85rem}.fg{gap:.5rem}.nb{padding:.6rem 1rem}}
+.det-card{display:flex;flex-direction:column;align-items:center;gap:.35rem;padding:.85rem .5rem;background:rgba(255,255,255,.04);border:1px solid var(--bdr);border-radius:12px;cursor:pointer;transition:.25s;text-align:center}
+.det-card:hover{background:rgba(139,92,246,.1);border-color:rgba(139,92,246,.3);transform:translateY(-2px)}
+.det-card.on{background:rgba(139,92,246,.15);border-color:var(--ac);box-shadow:0 0 16px var(--ac-glow)}
+.det-card i{font-size:1.5rem;color:var(--ac)}
+.det-name{font-size:.82rem;font-weight:600;color:var(--bright)}
+.det-tag{font-size:.68rem;color:var(--dim);background:rgba(255,255,255,.06);padding:.1rem .45rem;border-radius:10px}
 </style>
 </head>
 <body>
@@ -109,23 +115,48 @@ select option{background:#1e1b4b;color:var(--txt)}
 
 <!-- Step 0: Config -->
 <div class="sp-p" data-step="0">
-<div class="g"><div class="gh"><h3><i class="bi bi-gear"></i>创建配置</h3><span class="et">POST /api/configs</span></div>
-<div class="gb"><form id="wf-cf">
-<div class="fi" style="margin-bottom:.75rem"><label>风格</label><select id="wf-sty" style="width:100%"><option value="detective">悬疑 — 正统侦探：严密逻辑推理，证据链环环相扣</option><option value="drama">搞笑 — 戏影侦探：谐音梗、无厘头、喜剧反转</option><option value="discover">探索 — 寻迹侦探：多分支多结局，高可重玩性</option><option value="destiny">浪漫 — 命运侦探：命运交织，宿命羁绊</option><option value="dream">叙诡 — 幻梦侦探：梦幻叙事，叙述性诡计</option><option value="dimension">科幻 — 赛博侦探：全息投影、传送门等高科技</option><option value="death">恐怖 — 幽冥侦探：民俗/哥特/克苏鲁，充满未知</option></select></div>
-<div class="fg">
-  <div class="fi"><label>玩家人数</label><input type="number" id="wf-pc" value="4" min="1" max="6"></div>
-  <div class="fi"><label>时长 (小时)</label><input type="number" id="wf-dh" value="3" min="2" max="6"></div>
-  <div class="fi"><label>类型</label><select id="wf-gt"><option value="honkaku">本格 — 公平逻辑推理</option><option value="shin_honkaku">新本格 — 特殊设定+推理</option><option value="henkaku">变格 — 猎奇恐怖幻想</option></select></div>
-  <div class="fi"><label>年龄段</label><select id="wf-ag"><option value="adult">成年人</option><option value="college">大学生</option><option value="middle_school">中学生</option><option value="elementary">小学生</option></select></div>
-  <div class="fi s2"><label>还原 / 推理 比例</label><input type="range" id="wf-rt" min="0" max="100" value="60"><div class="rr"><span class="rb a">还原 <span id="wf-rr">60</span>%</span><span class="rb b">推理 <span id="wf-dr">40</span>%</span></div></div>
-  <div class="fi"><label>语言</label><select id="wf-ln"><option value="zh-CN">中文</option><option value="en-US">English</option><option value="ja-JP">日本語</option><option value="ko-KR">한국어</option></select></div>
-  <div class="fi"><label>时代</label><input type="text" id="wf-era" value="现代"></div>
-  <div class="fi"><label>地点</label><input type="text" id="wf-loc" value="别墅"></div>
-  <div class="fi"><label>主题</label><input type="text" id="wf-thm" value="复仇"></div>
+<!-- 侦探选择卡片 -->
+<div class="g"><div class="gh"><h3><i class="bi bi-person-badge"></i>选择你的侦探</h3></div>
+<div class="gb">
+<div id="wf-det-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.6rem">
+  <div class="det-card" data-val="detective"><i class="bi bi-search"></i><span class="det-name">正统侦探</span><span class="det-tag">悬疑</span></div>
+  <div class="det-card" data-val="drama"><i class="bi bi-emoji-laughing"></i><span class="det-name">戏影侦探</span><span class="det-tag">搞笑</span></div>
+  <div class="det-card" data-val="discover"><i class="bi bi-compass"></i><span class="det-name">寻迹侦探</span><span class="det-tag">探索</span></div>
+  <div class="det-card" data-val="destiny"><i class="bi bi-heart"></i><span class="det-name">命运侦探</span><span class="det-tag">浪漫</span></div>
+  <div class="det-card" data-val="dream"><i class="bi bi-cloud-moon"></i><span class="det-name">幻梦侦探</span><span class="det-tag">叙诡</span></div>
+  <div class="det-card" data-val="dimension"><i class="bi bi-robot"></i><span class="det-name">赛博侦探</span><span class="det-tag">科幻</span></div>
+  <div class="det-card" data-val="death"><i class="bi bi-moon-stars"></i><span class="det-name">幽冥侦探</span><span class="det-tag">恐怖</span></div>
 </div>
-<div class="br"><button type="submit" class="btn bp" id="wf-bc"><i class="bi bi-arrow-right"></i>创建配置并继续</button></div>
-</form></div>
+<input type="hidden" id="wf-sty" value="">
+</div></div>
+
+<!-- 配置面板（选择侦探后展开） -->
+<div id="wf-cfg-panel" style="display:none">
+<div class="g"><div class="gh"><h3><i class="bi bi-gear"></i>创建配置</h3><span class="et">POST /api/configs</span></div>
+<div class="gb">
+  <!-- 锁定的风格展示 -->
+  <div id="wf-style-lock" style="display:flex;align-items:center;gap:.75rem;padding:.6rem .85rem;background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.25);border-radius:10px;margin-bottom:1rem">
+    <i id="wf-lock-icon" class="bi bi-search" style="font-size:1.3rem;color:var(--ac)"></i>
+    <div style="flex:1"><span id="wf-lock-name" style="font-weight:600;color:var(--bright);font-size:.9rem"></span><span id="wf-lock-desc" style="font-size:.75rem;color:var(--dim);margin-left:.5rem"></span></div>
+    <button type="button" class="btn bg" id="wf-sty-change" style="font-size:.72rem;padding:.3rem .6rem"><i class="bi bi-arrow-left-right"></i>更换</button>
+  </div>
+  <form id="wf-cf">
+  <div class="fg">
+    <div class="fi"><label>玩家人数</label><input type="number" id="wf-pc" value="4" min="1" max="6"></div>
+    <div class="fi"><label>时长 (小时)</label><input type="number" id="wf-dh" value="3" min="2" max="6"></div>
+    <div class="fi"><label>类型</label><select id="wf-gt"><option value="honkaku">本格 — 公平逻辑推理</option><option value="shin_honkaku">新本格 — 特殊设定+推理</option><option value="henkaku">变格 — 猎奇恐怖幻想</option></select></div>
+    <div class="fi"><label>年龄段</label><select id="wf-ag"><option value="adult">成年人</option><option value="college">大学生</option><option value="middle_school">中学生</option><option value="elementary">小学生</option></select></div>
+    <div class="fi s2"><label>还原 / 推理 比例</label><input type="range" id="wf-rt" min="0" max="100" value="60"><div class="rr"><span class="rb a">还原 <span id="wf-rr">60</span>%</span><span class="rb b">推理 <span id="wf-dr">40</span>%</span></div></div>
+    <div class="fi"><label>语言</label><select id="wf-ln"><option value="zh-CN">中文</option><option value="en-US">English</option><option value="ja-JP">日本語</option><option value="ko-KR">한국어</option></select></div>
+    <div class="fi"><label>时代</label><input type="text" id="wf-era" value="现代"></div>
+    <div class="fi"><label>地点</label><input type="text" id="wf-loc" value="别墅"></div>
+    <div class="fi"><label>主题</label><input type="text" id="wf-thm" value="复仇"></div>
+  </div>
+  <div class="br"><button type="submit" class="btn bp" id="wf-bc"><i class="bi bi-arrow-right"></i>创建配置并继续</button></div>
+  </form>
+</div>
 <div class="gf"><pre class="res" id="wf-cr">等待提交...</pre></div></div>
+</div>
 </div>
 
 <!-- Step 1: Session -->
@@ -238,6 +269,13 @@ $$('.tb').forEach(b=>{b.addEventListener('click',()=>{$$('.tb').forEach(x=>x.cla
 // Ratio
 $('#wf-rt').addEventListener('input',function(){$('#wf-rr').textContent=this.value;$('#wf-dr').textContent=100-this.value});
 
+// Detective card data
+const DET={detective:{icon:'bi-search',name:'正统侦探',desc:'严密逻辑推理，冷静克制，证据链环环相扣'},drama:{icon:'bi-emoji-laughing',name:'戏影侦探',desc:'谐音梗、无厘头、喜剧反转'},discover:{icon:'bi-compass',name:'寻迹侦探',desc:'多分支多结局，隐藏内容，高可重玩性'},destiny:{icon:'bi-heart',name:'命运侦探',desc:'命运交织，浪漫情感，宿命羁绊'},dream:{icon:'bi-cloud-moon',name:'幻梦侦探',desc:'梦幻叙事，真假不分，叙述性诡计'},dimension:{icon:'bi-robot',name:'赛博侦探',desc:'全息投影、传送门、太空飞船等高科技设定'},death:{icon:'bi-moon-stars',name:'幽冥侦探',desc:'民俗/日式/哥特/克苏鲁恐怖，充满未知'}};
+
+// Detective card selection
+$$('.det-card').forEach(c=>{c.addEventListener('click',()=>{$$('.det-card').forEach(x=>x.classList.remove('on'));c.classList.add('on');const v=c.dataset.val;$('#wf-sty').value=v;const d=DET[v];$('#wf-lock-icon').className='bi '+d.icon;$('#wf-lock-name').textContent=d.name;$('#wf-lock-desc').textContent=d.desc;$('#wf-cfg-panel').style.display='block'})});
+$('#wf-sty-change').addEventListener('click',()=>{$('#wf-cfg-panel').style.display='none';$('#wf-sty').value='';$$('.det-card').forEach(x=>x.classList.remove('on'))});
+
 // Stepper
 function go(n){cs=n;$$('.st').forEach(el=>{const s=+el.dataset.step;el.classList.remove('on','ok','er');if(s<n)el.classList.add('ok');else if(s===n)el.classList.add('on')});$$('.sp-p').forEach(el=>{el.style.display=(+el.dataset.step===n)?'block':'none'})}
 
@@ -298,7 +336,7 @@ b.disabled=false;b.innerHTML='<i class="bi bi-check-lg"></i>批准章节';poll(h
 
 // Done
 $('#wf-asm').addEventListener('click',async()=>{const b=$('#wf-asm');b.disabled=true;b.innerHTML='<span class="sp"></span>组装中...';const r=await api('POST','/api/authoring-sessions/'+si+'/assemble');sr($('#wf-ar'),r.data,r.ok);b.disabled=false;b.innerHTML='<i class="bi bi-box"></i>组装剧本'});
-$('#wf-rst').addEventListener('click',()=>{sp();ci=null;si=null;clearHash();go(0);['#wf-cr','#wf-sr','#wf-pr','#wf-or','#wf-chr','#wf-ar'].forEach(s=>{$(s).textContent='等待操作...';$(s).className='res'});$('#wf-pc2').value='';$('#wf-oc').value='';$('#wf-cc').value=''});
+$('#wf-rst').addEventListener('click',()=>{sp();ci=null;si=null;clearHash();go(0);['#wf-cr','#wf-sr','#wf-pr','#wf-or','#wf-chr','#wf-ar'].forEach(s=>{$(s).textContent='等待操作...';$(s).className='res'});$('#wf-pc2').value='';$('#wf-oc').value='';$('#wf-cc').value='';$('#wf-sty').value='';$('#wf-cfg-panel').style.display='none';$$('.det-card').forEach(x=>x.classList.remove('on'))});
 window.retrySession=async function(){const r=await api('POST','/api/authoring-sessions/'+si+'/retry');if(r.ok){await api('POST','/api/authoring-sessions/'+si+'/advance');poll(hu)}};
 
 // Quick config

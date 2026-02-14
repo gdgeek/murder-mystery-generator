@@ -203,6 +203,48 @@ router.get('/', async (req: Request, res: Response) => {
 
 /**
  * @openapi
+ * /api/scripts/export-all:
+ *   get:
+ *     tags: [剧本管理]
+ *     summary: 导出所有剧本列表（含下载链接）
+ *     description: 返回所有剧本的摘要信息及各自的导出链接
+ *     responses:
+ *       200:
+ *         description: 成功返回剧本导出列表
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: string
+ *                   title:
+ *                     type: string
+ *                   status:
+ *                     type: string
+ *                   exportUrl:
+ *                     type: string
+ */
+router.get('/export-all', async (_req: Request, res: Response) => {
+  try {
+    const scripts = await generatorService.listScripts({});
+    const list = (scripts as Array<{ id: string; title: string; status: string; createdAt: unknown }>).map(s => ({
+      id: s.id,
+      title: s.title,
+      status: s.status,
+      createdAt: s.createdAt,
+      exportUrl: `/api/scripts/${s.id}/export`,
+    }));
+    res.json(list);
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+/**
+ * @openapi
  * /api/scripts/{id}:
  *   get:
  *     tags: [剧本管理]
@@ -243,6 +285,50 @@ router.get('/:id', async (req: Request, res: Response) => {
       return;
     }
     res.json(script);
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+/**
+ * @openapi
+ * /api/scripts/{id}/export:
+ *   get:
+ *     tags: [剧本管理]
+ *     summary: 导出剧本 JSON 文件
+ *     description: 将指定剧本导出为 JSON 文件下载，文件名为剧本标题
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 剧本唯一标识
+ *     responses:
+ *       200:
+ *         description: 成功返回剧本 JSON 文件
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *       404:
+ *         description: 未找到指定剧本
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.get('/:id/export', async (req: Request, res: Response) => {
+  try {
+    const script = await generatorService.getScript(req.params.id);
+    if (!script) {
+      res.status(404).json({ error: 'Script not found' });
+      return;
+    }
+    const filename = encodeURIComponent(script.title || script.id) + '.json';
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${filename}`);
+    res.send(JSON.stringify(script, null, 2));
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }
