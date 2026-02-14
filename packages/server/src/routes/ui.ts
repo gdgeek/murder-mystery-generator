@@ -59,7 +59,7 @@ body{
 label{font-size:.75rem;font-weight:500;color:var(--dim);text-transform:uppercase;letter-spacing:.5px}
 input,select,textarea{font-family:inherit;font-size:.85rem;padding:.55rem .75rem;background:rgba(255,255,255,.04);border:1px solid var(--bdr);border-radius:8px;color:var(--txt);outline:0;transition:.2s}
 input:focus,select:focus,textarea:focus{border-color:var(--ac);box-shadow:0 0 0 3px var(--ac-glow)}
-textarea{font-family:'JetBrains Mono',monospace;font-size:.8rem;resize:vertical;min-height:160px}
+textarea{font-family:'JetBrains Mono',monospace;font-size:.8rem;resize:vertical;min-height:160px}textarea:disabled{opacity:.5;cursor:not-allowed;background:rgba(255,255,255,.02)}
 input[type=range]{-webkit-appearance:none;background:linear-gradient(90deg,var(--ac2),var(--ac));padding:0;height:6px;border:0;border-radius:3px;margin-top:.5rem}
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--bright);cursor:pointer;box-shadow:0 0 8px var(--ac-glow)}
 .rr{display:flex;gap:.5rem;margin-top:.4rem}
@@ -68,9 +68,9 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;heigh
 .btn{font-family:inherit;font-size:.82rem;font-weight:600;padding:.6rem 1.2rem;border:0;border-radius:8px;cursor:pointer;transition:.2s;display:inline-flex;align-items:center;gap:.4rem}
 .bp{background:linear-gradient(135deg,var(--ac),#7c3aed);color:#fff;box-shadow:0 2px 12px var(--ac-glow)}
 .bp:hover{transform:translateY(-1px);box-shadow:0 4px 20px var(--ac-glow)}.bp:disabled{opacity:.5;cursor:not-allowed;transform:none}
-.bs{background:linear-gradient(135deg,var(--ok),#059669);color:#fff;box-shadow:0 2px 12px rgba(16,185,129,.3)}.bs:hover{transform:translateY(-1px)}
-.bg{background:rgba(255,255,255,.06);color:var(--txt);border:1px solid var(--bdr)}.bg:hover{background:rgba(255,255,255,.1)}
-.bw{background:rgba(245,158,11,.15);color:var(--warn);border:1px solid rgba(245,158,11,.2)}.bw:hover{background:rgba(245,158,11,.25)}
+.bs{background:linear-gradient(135deg,var(--ok),#059669);color:#fff;box-shadow:0 2px 12px rgba(16,185,129,.3)}.bs:hover{transform:translateY(-1px)}.bs:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.bg{background:rgba(255,255,255,.06);color:var(--txt);border:1px solid var(--bdr)}.bg:hover{background:rgba(255,255,255,.1)}.bg:disabled{opacity:.5;cursor:not-allowed}
+.bw{background:rgba(245,158,11,.15);color:var(--warn);border:1px solid rgba(245,158,11,.2)}.bw:hover{background:rgba(245,158,11,.25)}.bw:disabled{opacity:.5;cursor:not-allowed}
 .br{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:1rem}
 pre.res{font-family:'JetBrains Mono',monospace;font-size:.78rem;line-height:1.6;padding:1rem;border-radius:var(--r);max-height:45vh;overflow:auto;background:rgba(0,0,0,.4);color:var(--dim);white-space:pre-wrap;word-break:break-all;border:1px solid var(--bdr);margin-top:.75rem}
 pre.res.ok{border-left:3px solid var(--ok);color:var(--txt)}pre.res.err{border-left:3px solid var(--err);color:#fca5a5}
@@ -182,8 +182,8 @@ select option{background:#1e1b4b;color:var(--txt)}
 <div class="g"><div class="gh"><h3><i class="bi bi-lightbulb"></i>企划审阅</h3></div>
 <div class="gb">
   <div id="wf-ps"></div>
-  <div class="fi" style="margin-top:.5rem"><label>企划内容（可编辑后保存）</label><textarea id="wf-pc2"></textarea></div>
-  <div class="br"><button class="btn bg" id="wf-psa"><i class="bi bi-floppy"></i>保存编辑</button><button class="btn bs" id="wf-pa"><i class="bi bi-check-lg"></i>批准并继续</button></div>
+  <div class="fi" style="margin-top:.5rem"><label>企划内容（可编辑后保存）</label><textarea id="wf-pc2" disabled placeholder="等待生成..."></textarea></div>
+  <div class="br"><button class="btn bg" id="wf-psa" disabled><i class="bi bi-floppy"></i>保存编辑</button><button class="btn bs" id="wf-pa" disabled><i class="bi bi-check-lg"></i>批准并继续</button></div>
 </div>
 <div class="gf"><pre class="res" id="wf-pr">等待生成...</pre></div></div>
 </div>
@@ -193,8 +193,8 @@ select option{background:#1e1b4b;color:var(--txt)}
 <div class="g"><div class="gh"><h3><i class="bi bi-map"></i>大纲审阅</h3></div>
 <div class="gb">
   <div id="wf-os"></div>
-  <div class="fi" style="margin-top:.5rem"><label>大纲内容（可编辑后保存）</label><textarea id="wf-oc"></textarea></div>
-  <div class="br"><button class="btn bg" id="wf-osa"><i class="bi bi-floppy"></i>保存编辑</button><button class="btn bs" id="wf-oa"><i class="bi bi-check-lg"></i>批准并继续</button></div>
+  <div class="fi" style="margin-top:.5rem"><label>大纲内容（可编辑后保存）</label><textarea id="wf-oc" disabled placeholder="等待生成..."></textarea></div>
+  <div class="br"><button class="btn bg" id="wf-osa" disabled><i class="bi bi-floppy"></i>保存编辑</button><button class="btn bs" id="wf-oa" disabled><i class="bi bi-check-lg"></i>批准并继续</button></div>
 </div>
 <div class="gf"><pre class="res" id="wf-or">等待生成...</pre></div></div>
 </div>
@@ -204,8 +204,8 @@ select option{background:#1e1b4b;color:var(--txt)}
 <div class="g"><div class="gh"><h3><i class="bi bi-book"></i>章节审阅</h3></div>
 <div class="gb">
   <div id="wf-cs"></div>
-  <div class="fi" style="margin-top:.5rem"><label>当前章节内容</label><textarea id="wf-cc" style="min-height:220px"></textarea></div>
-  <div class="br"><button class="btn bg" id="wf-csa"><i class="bi bi-floppy"></i>保存编辑</button><button class="btn bw" id="wf-crg"><i class="bi bi-arrow-repeat"></i>重新生成</button><button class="btn bs" id="wf-ca"><i class="bi bi-check-lg"></i>批准章节</button></div>
+  <div class="fi" style="margin-top:.5rem"><label>当前章节内容</label><textarea id="wf-cc" style="min-height:220px" disabled placeholder="等待生成..."></textarea></div>
+  <div class="br"><button class="btn bg" id="wf-csa" disabled><i class="bi bi-floppy"></i>保存编辑</button><button class="btn bw" id="wf-crg" disabled><i class="bi bi-arrow-repeat"></i>重新生成</button><button class="btn bs" id="wf-ca" disabled><i class="bi bi-check-lg"></i>批准章节</button></div>
 </div>
 <div class="gf"><pre class="res" id="wf-chr">等待生成...</pre></div></div>
 </div>
@@ -274,7 +274,7 @@ function readHash(){const h=location.hash.slice(1);if(!h)return null;const p=new
 const STATE_STEP={draft:1,planning:2,plan_review:2,designing:3,design_review:3,executing:4,chapter_review:4,completed:5,failed:-1};
 
 // Health
-(async()=>{const el=$('#health');try{const r=await fetch(A+'/api/configs');el.innerHTML=r.ok?'<span class="dot on"></span><span class="hl">在线</span>':'<span class="dot off"></span><span class="hl">异常</span>'}catch{el.innerHTML='<span class="dot off"></span><span class="hl">离线</span>'}})();
+(async()=>{const el=$('#health');try{const r=await fetch(A+'/health');el.innerHTML=r.ok?'<span class="dot on"></span><span class="hl">在线</span>':'<span class="dot off"></span><span class="hl">异常</span>'}catch{el.innerHTML='<span class="dot off"></span><span class="hl">离线</span>'}})();
 
 // Tabs
 $$('.tb').forEach(b=>{b.addEventListener('click',()=>{$$('.tb').forEach(x=>x.classList.remove('on'));b.classList.add('on');$$('.tp').forEach(p=>p.classList.remove('on'));$('#tab-'+b.dataset.tab).classList.add('on')})});
@@ -311,12 +311,24 @@ si=r.data.id;saveHash();const adv=await api('POST','/api/authoring-sessions/'+si
 b.disabled=false;b.innerHTML='<i class="bi bi-arrow-right"></i>创建并推进';
 if(adv.ok||adv.status===202){go(2);ss($('#wf-ps'),'LLM 正在生成企划...','w');poll(hu)}});
 
+// Enable editing controls when content is ready
+function enableStep(step){
+  if(step===2){$('#wf-pc2').disabled=false;$('#wf-pc2').placeholder='';$('#wf-psa').disabled=false;$('#wf-pa').disabled=false}
+  if(step===3){$('#wf-oc').disabled=false;$('#wf-oc').placeholder='';$('#wf-osa').disabled=false;$('#wf-oa').disabled=false}
+  if(step===4){$('#wf-cc').disabled=false;$('#wf-cc').placeholder='';$('#wf-csa').disabled=false;$('#wf-crg').disabled=false;$('#wf-ca').disabled=false}
+}
+function disableStep(step){
+  if(step===2){$('#wf-pc2').disabled=true;$('#wf-psa').disabled=true;$('#wf-pa').disabled=true}
+  if(step===3){$('#wf-oc').disabled=true;$('#wf-osa').disabled=true;$('#wf-oa').disabled=true}
+  if(step===4){$('#wf-cc').disabled=true;$('#wf-csa').disabled=true;$('#wf-crg').disabled=true;$('#wf-ca').disabled=true}
+}
+
 // Poll handler
 function hu(s){
   if(s.state==='failed'){sp();$$('.st')[cs].classList.add('er');const rm={2:'#wf-pr',3:'#wf-or',4:'#wf-chr'},sm={2:'#wf-ps',3:'#wf-os',4:'#wf-cs'};sr($(rm[cs]||'#wf-pr'),s.failureInfo||{error:'生成失败'},false);ss($(sm[cs]||'#wf-ps'),'生成失败','e');return}
-  if(s.state==='plan_review'&&cs===2){sp();const c=s.planOutput?.authorEdited||s.planOutput?.llmOriginal;$('#wf-pc2').value=typeof c==='string'?c:JSON.stringify(c,null,2);ss($('#wf-ps'),'企划已生成，请审阅','o');sr($('#wf-pr'),s.planOutput,true)}
-  if(s.state==='design_review'&&cs<=3){sp();go(3);const c=s.outlineOutput?.authorEdited||s.outlineOutput?.llmOriginal;$('#wf-oc').value=typeof c==='string'?c:JSON.stringify(c,null,2);ss($('#wf-os'),'大纲已生成，请审阅','o');sr($('#wf-or'),s.outlineOutput,true)}
-  if(s.state==='chapter_review'&&cs<=4){sp();go(4);sch(s)}
+  if(s.state==='plan_review'&&cs===2){sp();const c=s.planOutput?.authorEdited||s.planOutput?.llmOriginal;$('#wf-pc2').value=typeof c==='string'?c:JSON.stringify(c,null,2);ss($('#wf-ps'),'企划已生成，请审阅','o');sr($('#wf-pr'),s.planOutput,true);enableStep(2)}
+  if(s.state==='design_review'&&cs<=3){sp();go(3);const c=s.outlineOutput?.authorEdited||s.outlineOutput?.llmOriginal;$('#wf-oc').value=typeof c==='string'?c:JSON.stringify(c,null,2);ss($('#wf-os'),'大纲已生成，请审阅','o');sr($('#wf-or'),s.outlineOutput,true);enableStep(3)}
+  if(s.state==='chapter_review'&&cs<=4){sp();go(4);sch(s);enableStep(4)}
   if(s.state==='completed'){sp();go(5);sr($('#wf-ar'),s,true)}
   if(['planning','designing','executing','generating'].includes(s.state)){const batch=s.parallelBatch;const bm=batch?' (并行 '+(batch.completedIndices?batch.completedIndices.length:0)+'/'+batch.chapterIndices.length+')':'';if(cs===2)ss($('#wf-ps'),'正在生成... '+s.state+bm,'w');if(cs===3)ss($('#wf-os'),'正在生成... '+s.state+bm,'w');if(cs===4)ss($('#wf-cs'),'正在并行生成中...'+bm,'w')}
 }
@@ -373,9 +385,9 @@ async function restore(){
       go(2);sr($('#wf-pr'),s.failureInfo||{error:'生成失败'},false);ss($('#wf-ps'),'生成失败','e');return;
     }
     if(step<=1){go(step);return}
-    if(step>=2&&s.planOutput){const c=s.planOutput.authorEdited||s.planOutput.llmOriginal;$('#wf-pc2').value=typeof c==='string'?c:JSON.stringify(c,null,2)}
-    if(step>=3&&s.outlineOutput){const c=s.outlineOutput.authorEdited||s.outlineOutput.llmOriginal;$('#wf-oc').value=typeof c==='string'?c:JSON.stringify(c,null,2)}
-    if(step>=4&&s.chapters){sch(s)}
+    if(step>=2&&s.planOutput){const c=s.planOutput.authorEdited||s.planOutput.llmOriginal;$('#wf-pc2').value=typeof c==='string'?c:JSON.stringify(c,null,2);enableStep(2)}
+    if(step>=3&&s.outlineOutput){const c=s.outlineOutput.authorEdited||s.outlineOutput.llmOriginal;$('#wf-oc').value=typeof c==='string'?c:JSON.stringify(c,null,2);enableStep(3)}
+    if(step>=4&&s.chapters){sch(s);enableStep(4)}
     go(step);
     if(['planning','designing','executing','generating'].includes(s.state)){
       const sm={2:'#wf-ps',3:'#wf-os',4:'#wf-cs'};
