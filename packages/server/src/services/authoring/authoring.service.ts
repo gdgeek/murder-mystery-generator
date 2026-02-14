@@ -1159,6 +1159,11 @@ export class AuthoringService {
       throw new Error(`Cannot assemble script: session is in state '${session.state}', expected 'completed'`);
     }
 
+    // If already assembled, return existing session
+    if (session.scriptId) {
+      return session;
+    }
+
     if (session.chapters.length === 0) {
       throw new Error('Cannot assemble script: no chapters found');
     }
