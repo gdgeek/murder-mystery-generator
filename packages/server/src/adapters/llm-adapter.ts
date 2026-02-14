@@ -113,12 +113,22 @@ export class LLMAdapter implements ILLMAdapter {
   }
 
   /** Overridable for testing */
-  protected async doFetch(request: LLMRequest): Promise<Response> {
+  protected async doFetch(request: LLMRequest, jsonMode = true): Promise<Response> {
     const messages: Array<{ role: string; content: string }> = [];
     if (request.systemPrompt) {
       messages.push({ role: 'system', content: request.systemPrompt });
     }
     messages.push({ role: 'user', content: request.prompt });
+
+    const payload: Record<string, unknown> = {
+      model: this.model,
+      messages,
+      max_tokens: request.maxTokens,
+      temperature: request.temperature,
+    };
+    if (jsonMode) {
+      payload.response_format = { type: 'json_object' };
+    }
 
     return fetch(this.endpoint, {
       method: 'POST',
@@ -126,14 +136,36 @@ export class LLMAdapter implements ILLMAdapter {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${this.apiKey}`,
       },
-      body: JSON.stringify({
-        model: this.model,
-        messages,
-        max_tokens: request.maxTokens,
-        temperature: request.temperature,
-        response_format: { type: 'json_object' },
-      }),
+      body: JSON.stringify(payload),
     });
+  }
+
+  /**
+   * Send a plain text request (no json_object response_format).
+   * Used for connectivity verification.
+   */
+  async sendRaw(request: LLMRequest): Promise<LLMResponse> {
+    const startTime = Date.now();
+    const response = await this.doFetch(request, false);
+    const responseTimeMs = Date.now() - startTime;
+
+    if (!response.ok) {
+      const errBody = await response.text();
+      throw new LLMError(
+        `LLM API error: ${response.status}`,
+        { statusCode: response.status, retryAttempts: 0, provider: this.provider, isRetryable: false },
+      );
+    }
+
+    const body = await response.json() as { choices?: { message?: { content?: string } }[]; usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number } };
+    const content = body.choices?.[0]?.message?.content ?? '';
+    const usage = body.usage ?? { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
+
+    return {
+      content,
+      tokenUsage: { prompt: usage.prompt_tokens, completion: usage.completion_tokens, total: usage.prompt_tokens + usage.completion_tokens },
+      responseTimeMs,
+    };
   }
 
   protected sleep(ms: number): Promise<void> {

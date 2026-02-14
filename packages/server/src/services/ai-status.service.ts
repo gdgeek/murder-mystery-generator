@@ -51,8 +51,8 @@ export class AiStatusService {
         provider: config.provider,
       });
 
-      await adapter.send({
-        prompt: 'Hi',
+      await adapter.sendRaw({
+        prompt: 'Say hi',
         maxTokens: 5,
         temperature: 0,
       });

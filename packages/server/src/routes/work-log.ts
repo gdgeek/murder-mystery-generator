@@ -14,15 +14,27 @@ function root(): string {
 
 /**
  * GET /api/work-log/raw
- * 返回 raw.md 原始日志内容
+ * 返回所有原始日志内容（raw.md + raw-YYYY-MM-DD.md 按日期排序合并）
  */
 router.get('/raw', (_req, res) => {
-  const file = path.join(root(), '.kiro', 'work-log', 'raw.md');
-  if (!fs.existsSync(file)) {
+  const dir = path.join(root(), '.kiro', 'work-log');
+  if (!fs.existsSync(dir)) {
     return res.json({ content: '' });
   }
-  const content = fs.readFileSync(file, 'utf-8');
-  res.json({ content });
+  const parts: string[] = [];
+  // 旧的 raw.md（如果存在）
+  const legacy = path.join(dir, 'raw.md');
+  if (fs.existsSync(legacy)) {
+    parts.push(fs.readFileSync(legacy, 'utf-8'));
+  }
+  // 按日期分割的 raw-YYYY-MM-DD.md 文件
+  const dated = fs.readdirSync(dir)
+    .filter(f => /^raw-\d{4}-\d{2}-\d{2}\.md$/.test(f))
+    .sort();
+  for (const f of dated) {
+    parts.push(fs.readFileSync(path.join(dir, f), 'utf-8'));
+  }
+  res.json({ content: parts.join('\n') });
 });
 
 /**

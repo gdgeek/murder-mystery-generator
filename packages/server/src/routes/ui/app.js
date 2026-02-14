@@ -1,7 +1,7 @@
 (function(){
 'use strict';
 var A='',cs=0,ci=null,si=null,pt=null,ephAi=null;
-var PROV_DEFAULTS={openai:{ep:'https://api.openai.com/v1/chat/completions',mdl:'gpt-4'},anthropic:{ep:'https://api.anthropic.com/v1/messages',mdl:'claude-3-sonnet'},doubao:{ep:'https://ark.cn-beijing.volces.com/api/v3/chat/completions',mdl:'doubao-seed-1-8-251228'},custom:{ep:'',mdl:''}};
+var PROV_DEFAULTS={openai:{ep:'https://api.openai.com/v1/chat/completions',mdl:'gpt-4'},anthropic:{ep:'https://api.anthropic.com/v1/messages',mdl:'claude-3-sonnet'},doubao:{ep:'https://ark.cn-beijing.volces.com/api/v3/chat/completions',mdl:'doubao-seed-1-8-251228'},glm:{ep:'https://open.bigmodel.cn/api/paas/v4/chat/completions',mdl:'glm-4-plus'},deepseek:{ep:'https://api.deepseek.com/v1/chat/completions',mdl:'deepseek-chat'},custom:{ep:'',mdl:''}};
 function $(s){return document.querySelector(s)}
 function $$(s){return document.querySelectorAll(s)}
 function sr(el,d,ok){el.textContent=typeof d==='string'?d:JSON.stringify(d,null,2);el.className='res '+(ok?'ok':'err')}
@@ -35,7 +35,7 @@ var STATE_STEP={draft:1,planning:2,plan_review:2,designing:3,design_review:3,exe
         btn.disabled=true;btn.innerHTML='<span class="sp"></span>验证中...';
         var ms=$('#ai-msts');ms.style.display='flex';ms.style.background='rgba(139,92,246,.1)';ms.style.color='var(--ac)';ms.innerHTML='<span class="sp"></span>正在验证连通性...';
         var cfg={provider:prov.value,apiKey:key,endpoint:ep,model:mdl};
-        var vr=await api('POST','/api/ai-status/verify',cfg);
+        var vr=await api('POST','/api/ai-status/verify',{ephemeralAiConfig:cfg});
         if(vr.ok&&vr.data&&vr.data.valid){
           ms.style.background='rgba(16,185,129,.1)';ms.style.color='var(--ok)';ms.innerHTML='<i class="bi bi-check-circle"></i>验证通过';
           ephAi=cfg;
@@ -88,7 +88,7 @@ var r=await api('POST','/api/authoring-sessions',body);sr($('#wf-sr'),r.data,r.o
 if(!r.ok){b.disabled=false;b.innerHTML='<i class="bi bi-arrow-right"></i>创建并推进';return}
 si=r.data.id;saveHash();var adv=await api('POST','/api/authoring-sessions/'+si+'/advance');sr($('#wf-sr'),adv.data,adv.ok||adv.status===202);
 b.disabled=false;b.innerHTML='<i class="bi bi-arrow-right"></i>创建并推进';
-if(adv.ok||adv.status===202){go(2);ss($('#wf-ps'),'LLM 正在生成企划...','w');poll(hu)}});
+if(adv.ok||adv.status===202){go(2);disableStep(2);ss($('#wf-ps'),'LLM 正在生成企划...','w');poll(hu)}});
 
 // Enable/disable editing controls
 function enableStep(step){
@@ -96,15 +96,49 @@ function enableStep(step){
   if(step===3){$('#wf-oc').disabled=false;$('#wf-oc').placeholder='';$('#wf-osa').disabled=false;$('#wf-oa').disabled=false}
   if(step===4){$('#wf-cc').disabled=false;$('#wf-cc').placeholder='';$('#wf-csa').disabled=false;$('#wf-crg').disabled=false;$('#wf-ca').disabled=false}
 }
+function disableStep(step){
+  if(step===2){$('#wf-pc2').disabled=true;$('#wf-psa').disabled=true;$('#wf-pa').disabled=true}
+  if(step===3){$('#wf-oc').disabled=true;$('#wf-osa').disabled=true;$('#wf-oa').disabled=true}
+  if(step===4){$('#wf-cc').disabled=true;$('#wf-csa').disabled=true;$('#wf-crg').disabled=true;$('#wf-ca').disabled=true;$('#wf-ca').innerHTML='<i class="bi bi-check-lg"></i>批准章节'}
+}
 
 // Poll handler
 function hu(s){
-  if(s.state==='failed'){sp();$$('.st')[cs].classList.add('er');var rm={2:'#wf-pr',3:'#wf-or',4:'#wf-chr'},sm={2:'#wf-ps',3:'#wf-os',4:'#wf-cs'};sr($(rm[cs]||'#wf-pr'),s.failureInfo||{error:'生成失败'},false);ss($(sm[cs]||'#wf-ps'),'生成失败','e');return}
-  if(s.state==='plan_review'&&cs===2){sp();var c=s.planOutput&&(s.planOutput.authorEdited||s.planOutput.llmOriginal);$('#wf-pc2').value=typeof c==='string'?c:JSON.stringify(c,null,2);ss($('#wf-ps'),'企划已生成，请审阅','o');sr($('#wf-pr'),s.planOutput,true);enableStep(2)}
-  if(s.state==='design_review'&&cs<=3){sp();go(3);var c2=s.outlineOutput&&(s.outlineOutput.authorEdited||s.outlineOutput.llmOriginal);$('#wf-oc').value=typeof c2==='string'?c2:JSON.stringify(c2,null,2);ss($('#wf-os'),'大纲已生成，请审阅','o');sr($('#wf-or'),s.outlineOutput,true);enableStep(3)}
+  // Failed — show error with retry button
+  if(s.state==='failed'){
+    sp();$$('.st')[cs].classList.add('er');
+    var rm={2:'#wf-pr',3:'#wf-or',4:'#wf-chr'},sm={2:'#wf-ps',3:'#wf-os',4:'#wf-cs'};
+    var errInfo=s.failureInfo||{error:'生成失败'};
+    var errMsg=typeof errInfo==='string'?errInfo:(errInfo.error||errInfo.message||JSON.stringify(errInfo));
+    sr($(rm[cs]||'#wf-pr'),errInfo,false);
+    ss($(sm[cs]||'#wf-ps'),'<i class="bi bi-x-circle"></i> 生成失败：'+errMsg+'<button class="btn bw" onclick="retrySession()" style="margin-left:.5rem;font-size:.72rem;padding:.2rem .6rem"><i class="bi bi-arrow-repeat"></i>重试</button>','e');
+    disableStep(cs);
+    return;
+  }
+  // Plan review — enable editing
+  if(s.state==='plan_review'&&cs===2){
+    sp();var c=s.planOutput&&(s.planOutput.authorEdited||s.planOutput.llmOriginal);
+    $('#wf-pc2').value=typeof c==='string'?c:JSON.stringify(c,null,2);
+    ss($('#wf-ps'),'企划已生成，请审阅','o');sr($('#wf-pr'),s.planOutput,true);enableStep(2);
+  }
+  // Design review — enable editing
+  if(s.state==='design_review'&&cs<=3){
+    sp();go(3);var c2=s.outlineOutput&&(s.outlineOutput.authorEdited||s.outlineOutput.llmOriginal);
+    $('#wf-oc').value=typeof c2==='string'?c2:JSON.stringify(c2,null,2);
+    ss($('#wf-os'),'大纲已生成，请审阅','o');sr($('#wf-or'),s.outlineOutput,true);enableStep(3);
+  }
+  // Chapter review — enable editing
   if(s.state==='chapter_review'&&cs<=4){sp();go(4);sch(s);enableStep(4)}
+  // Completed
   if(s.state==='completed'){sp();go(5);sr($('#wf-ar'),s,true)}
-  if(['planning','designing','executing','generating'].indexOf(s.state)>=0){var batch=s.parallelBatch;var bm=batch?' (并行 '+(batch.completedIndices?batch.completedIndices.length:0)+'/'+batch.chapterIndices.length+')':'';if(cs===2)ss($('#wf-ps'),'正在生成... '+s.state+bm,'w');if(cs===3)ss($('#wf-os'),'正在生成... '+s.state+bm,'w');if(cs===4)ss($('#wf-cs'),'正在并行生成中...'+bm,'w')}
+  // Generating states — DISABLE all buttons, show progress
+  if(['planning','designing','executing','generating'].indexOf(s.state)>=0){
+    var batch=s.parallelBatch;
+    var bm=batch?' (并行 '+(batch.completedIndices?batch.completedIndices.length:0)+'/'+batch.chapterIndices.length+')':'';
+    if(cs===2){disableStep(2);ss($('#wf-ps'),'正在生成... '+s.state+bm,'w')}
+    if(cs===3){disableStep(3);ss($('#wf-os'),'正在生成... '+s.state+bm,'w')}
+    if(cs===4){disableStep(4);ss($('#wf-cs'),'正在并行生成中...'+bm,'w')}
+  }
 }
 var CHTYPE={dm_handbook:'DM手册',player_handbook:'玩家手册',materials:'游戏物料集',branch_structure:'分支结构'};
 function sch(s){var i=s.currentChapterIndex||0,ch=s.chapters&&s.chapters.find(function(c){return c.index===i}),c=ch?(typeof ch.content==='string'?ch.content:JSON.stringify(ch.content,null,2)):'';$('#wf-cc').value=c;
@@ -115,27 +149,42 @@ sr($('#wf-chr'),ch||'无章节数据',!!ch)}
 
 // Plan
 $('#wf-psa').addEventListener('click',async function(){var r=await api('PUT','/api/authoring-sessions/'+si+'/phases/plan/edit',{content:$('#wf-pc2').value});sr($('#wf-pr'),r.data,r.ok)});
-$('#wf-pa').addEventListener('click',async function(){var b=$('#wf-pa');b.disabled=true;var r=await api('POST','/api/authoring-sessions/'+si+'/phases/plan/approve');sr($('#wf-pr'),r.data,r.ok||r.status===202);b.disabled=false;if(r.ok||r.status===202){go(3);ss($('#wf-os'),'LLM 正在生成大纲...','w');poll(hu)}});
+$('#wf-pa').addEventListener('click',async function(){var b=$('#wf-pa');b.disabled=true;b.innerHTML='<span class="sp"></span>批准中...';
+var r=await api('POST','/api/authoring-sessions/'+si+'/phases/plan/approve');sr($('#wf-pr'),r.data,r.ok||r.status===202);
+if(!r.ok&&r.status!==202){b.disabled=false;b.innerHTML='<i class="bi bi-check-lg"></i>批准并继续';ss($('#wf-ps'),'批准失败：'+(r.data&&r.data.error||'未知错误'),'e');return}
+disableStep(2);b.innerHTML='<i class="bi bi-check-lg"></i>批准并继续';
+if(r.ok||r.status===202){go(3);ss($('#wf-os'),'LLM 正在生成大纲...','w');disableStep(3);poll(hu)}});
 
 // Outline
 $('#wf-osa').addEventListener('click',async function(){var r=await api('PUT','/api/authoring-sessions/'+si+'/phases/outline/edit',{content:$('#wf-oc').value});sr($('#wf-or'),r.data,r.ok)});
-$('#wf-oa').addEventListener('click',async function(){var b=$('#wf-oa');b.disabled=true;var r=await api('POST','/api/authoring-sessions/'+si+'/phases/outline/approve');sr($('#wf-or'),r.data,r.ok||r.status===202);b.disabled=false;if(r.ok||r.status===202){go(4);ss($('#wf-cs'),'LLM 正在生成章节...','w');poll(hu)}});
+$('#wf-oa').addEventListener('click',async function(){var b=$('#wf-oa');b.disabled=true;b.innerHTML='<span class="sp"></span>批准中...';
+var r=await api('POST','/api/authoring-sessions/'+si+'/phases/outline/approve');sr($('#wf-or'),r.data,r.ok||r.status===202);
+if(!r.ok&&r.status!==202){b.disabled=false;b.innerHTML='<i class="bi bi-check-lg"></i>批准并继续';ss($('#wf-os'),'批准失败：'+(r.data&&r.data.error||'未知错误'),'e');return}
+disableStep(3);b.innerHTML='<i class="bi bi-check-lg"></i>批准并继续';
+if(r.ok||r.status===202){go(4);ss($('#wf-cs'),'LLM 正在生成章节...','w');disableStep(4);poll(hu)}});
 
 // Chapter
 $('#wf-csa').addEventListener('click',async function(){var r=await api('PUT','/api/authoring-sessions/'+si+'/phases/chapter/edit',{content:$('#wf-cc').value});sr($('#wf-chr'),r.data,r.ok)});
-$('#wf-crg').addEventListener('click',async function(){var s=await api('GET','/api/authoring-sessions/'+si);var i=s.ok?(s.data.currentChapterIndex||0):0;var r=await api('POST','/api/authoring-sessions/'+si+'/chapters/'+i+'/regenerate');sr($('#wf-chr'),r.data,r.ok||r.status===202);if(r.ok||r.status===202){ss($('#wf-cs'),'正在重新生成章节...','w');poll(hu)}});
-$('#wf-ca').addEventListener('click',async function(){var b=$('#wf-ca');b.disabled=true;b.innerHTML='<span class="sp"></span>批准中...';ss($('#wf-cs'),'正在提交批准...','w');
+$('#wf-crg').addEventListener('click',async function(){disableStep(4);ss($('#wf-cs'),'正在重新生成章节...','w');var s=await api('GET','/api/authoring-sessions/'+si);var i=s.ok?(s.data.currentChapterIndex||0):0;var r=await api('POST','/api/authoring-sessions/'+si+'/chapters/'+i+'/regenerate');sr($('#wf-chr'),r.data,r.ok||r.status===202);if(!r.ok&&r.status!==202){ss($('#wf-cs'),'重新生成失败：'+(r.data&&r.data.error||'未知错误'),'e');enableStep(4);return}poll(hu)});
+$('#wf-ca').addEventListener('click',async function(){var b=$('#wf-ca');b.disabled=true;b.innerHTML='<span class="sp"></span>批准中...';disableStep(4);ss($('#wf-cs'),'正在提交批准...','w');
 var r=await api('POST','/api/authoring-sessions/'+si+'/phases/chapter/approve');
-if(!r.ok&&r.status!==202){sr($('#wf-chr'),r.data,false);ss($('#wf-cs'),'批准失败','e');b.disabled=false;b.innerHTML='<i class="bi bi-check-lg"></i>批准章节';return}
-if(r.ok&&r.status!==202){var s=r.data;if(s.state==='completed'){b.disabled=false;b.innerHTML='<i class="bi bi-check-lg"></i>批准章节';go(5);sr($('#wf-ar'),s,true)}else if(s.state==='chapter_review'){b.disabled=false;b.innerHTML='<i class="bi bi-check-lg"></i>批准章节';sch(s)}else{b.disabled=false;b.innerHTML='<i class="bi bi-check-lg"></i>批准章节';ss($('#wf-cs'),'正在并行生成下一批章节...','w');poll(hu)}return}
-ss($('#wf-cs'),'正在并行生成下一批章节，请稍候...','w');sr($('#wf-chr'),'后台并行生成中，请耐心等待...',true);
-b.disabled=false;b.innerHTML='<i class="bi bi-check-lg"></i>批准章节';poll(hu)});
+if(!r.ok&&r.status!==202){sr($('#wf-chr'),r.data,false);ss($('#wf-cs'),'批准失败：'+(r.data&&r.data.error||'未知错误'),'e');enableStep(4);return}
+if(r.ok&&r.status!==202){var s=r.data;if(s.state==='completed'){go(5);sr($('#wf-ar'),s,true)}else if(s.state==='chapter_review'){sch(s);enableStep(4)}else{ss($('#wf-cs'),'正在并行生成下一批章节...','w');poll(hu)}return}
+ss($('#wf-cs'),'正在并行生成下一批章节，请稍候...','w');sr($('#wf-chr'),'后台并行生成中，请耐心等待...',true);poll(hu)});
 
 // Done
 $('#wf-asm').addEventListener('click',async function(){var b=$('#wf-asm');b.disabled=true;b.innerHTML='<span class="sp"></span>组装中...';var r=await api('POST','/api/authoring-sessions/'+si+'/assemble');sr($('#wf-ar'),r.data,r.ok);b.disabled=false;b.innerHTML='<i class="bi bi-box"></i>组装剧本';if(r.ok&&r.data&&r.data.id){$('#wf-exp').dataset.scriptId=r.data.id}});
 $('#wf-exp').addEventListener('click',function(){var sid=$('#wf-exp').dataset.scriptId;if(sid){window.open(A+'/api/scripts/'+sid+'/export','_blank')}else{alert('请先组装剧本')}});
 $('#wf-rst').addEventListener('click',function(){sp();ci=null;si=null;clearHash();go(0);['#wf-cr','#wf-sr','#wf-pr','#wf-or','#wf-chr','#wf-ar'].forEach(function(s){$(s).textContent='等待操作...';$(s).className='res'});$('#wf-pc2').value='';$('#wf-oc').value='';$('#wf-cc').value='';$('#wf-sty').value='';$('#wf-cfg-panel').style.display='none';$$('.det-card').forEach(function(x){x.classList.remove('on')});delete $('#wf-exp').dataset.scriptId});
-window.retrySession=async function(){var r=await api('POST','/api/authoring-sessions/'+si+'/retry');if(r.ok){await api('POST','/api/authoring-sessions/'+si+'/advance');poll(hu)}};
+window.retrySession=async function(){
+  var sm={2:'#wf-ps',3:'#wf-os',4:'#wf-cs'};
+  if(sm[cs])ss($(sm[cs]),'正在重试...','w');
+  disableStep(cs);
+  var r=await api('POST','/api/authoring-sessions/'+si+'/retry');
+  if(!r.ok){if(sm[cs])ss($(sm[cs]),'重试失败：'+(r.data&&r.data.error||'未知错误'),'e');return}
+  await api('POST','/api/authoring-sessions/'+si+'/advance');
+  poll(hu);
+};
 
 // Quick config
 $('#qf').addEventListener('submit',async function(e){e.preventDefault();var body={playerCount:+$('#q-pc').value,durationHours:+$('#q-dh').value,gameType:$('#q-gt').value,ageGroup:$('#q-ag').value,restorationRatio:60,deductionRatio:40,language:$('#q-ln').value,era:$('#q-era').value,location:$('#q-loc').value,theme:$('#q-thm').value,style:$('#q-sty').value};var r=await api('POST','/api/configs',body);sr($('#q-res'),r.data,r.ok)});
@@ -162,6 +211,7 @@ async function restore(){
     if(step>=4&&s.chapters){sch(s);enableStep(4)}
     go(step);
     if(['planning','designing','executing','generating'].indexOf(s.state)>=0){
+      disableStep(step);
       var sm={2:'#wf-ps',3:'#wf-os',4:'#wf-cs'};
       if(sm[step])ss($(sm[step]),'正在生成... '+s.state,'w');
       poll(hu);
