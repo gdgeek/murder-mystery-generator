@@ -1,7 +1,7 @@
 services:
   mysql:
     image: mysql:8.0
-    restart: always
+    restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
       MYSQL_DATABASE: ${DB_NAME:-murder_mystery}
@@ -18,7 +18,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    restart: always
+    restart: unless-stopped
     ports:
       - "127.0.0.1:6379:6379"
     volumes:
@@ -30,8 +30,8 @@ services:
       retries: 5
 
   server:
-    image: ${SERVER_IMAGE:-murder-mystery-server:latest}
-    restart: always
+    image: ${SERVER_IMAGE:-hkccr.ccs.tencentyun.com/murder/murder-mystery-generator:latest}
+    restart: unless-stopped
     ports:
       - "${PORT:-3000}:3000"
     environment:
@@ -43,11 +43,6 @@ services:
       DB_NAME: ${DB_NAME:-murder_mystery}
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      LLM_API_KEY: ${LLM_API_KEY}
-      LLM_ENDPOINT: ${LLM_ENDPOINT}
-      LLM_MODEL: ${LLM_MODEL}
-      LLM_PROVIDER: ${LLM_PROVIDER}
-      LLM_PROVIDER_DOUBAO_API_KEY: ${LLM_PROVIDER_DOUBAO_API_KEY:-}
       PORT: 3000
     depends_on:
       mysql:

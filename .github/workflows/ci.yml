@@ -22,6 +22,7 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
       - run: pnpm --filter @murder-mystery/shared build
       - run: pnpm --filter @murder-mystery/server build
       - run: pnpm --filter @murder-mystery/server test -- --run

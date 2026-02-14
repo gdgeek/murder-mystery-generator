@@ -2,8 +2,8 @@
 'use strict';
 var A='',cs=0,ci=null,si=null,pt=null,ephAi=null;
 var PROV_DEFAULTS={openai:{ep:'https://api.openai.com/v1/chat/completions',mdl:'gpt-4'},anthropic:{ep:'https://api.anthropic.com/v1/messages',mdl:'claude-3-sonnet'},doubao:{ep:'https://ark.cn-beijing.volces.com/api/v3/chat/completions',mdl:'doubao-seed-1-8-251228'},glm:{ep:'https://open.bigmodel.cn/api/paas/v4/chat/completions',mdl:'glm-4-plus'},deepseek:{ep:'https://api.deepseek.com/v1/chat/completions',mdl:'deepseek-chat'},custom:{ep:'',mdl:''}};
-function $(s){return document.querySelector(s)}
-function $$(s){return document.querySelectorAll(s)}
+/** @param {string} s @returns {Element|null} */ function $(s){return document.querySelector(s)}
+/** @param {string} s @returns {NodeListOf<Element>} */ function $$(s){return document.querySelectorAll(s)}
 function sr(el,d,ok){el.textContent=typeof d==='string'?d:JSON.stringify(d,null,2);el.className='res '+(ok?'ok':'err')}
 async function api(m,p,b){var o={method:m,headers:{'Content-Type':'application/json'}};if(b)o.body=JSON.stringify(b);var r=await fetch(A+p,o);var j=await r.json().catch(function(){return null});return{ok:r.ok,status:r.status,data:j}}
 
@@ -324,7 +324,7 @@ window.changeAiAndRetry=function(){
   // Show the AI config modal for changing config on existing session
   var modal=$('#ai-modal');modal.style.display='flex';
   var ms=$('#ai-msts');ms.style.display='none';ms.innerHTML='';
-  $('.ferr').forEach(function(e){e.style.display='none';e.textContent=''});
+  $$('.ferr').forEach(function(e){e.style.display='none';e.textContent=''});
   // Replace the verify button handler temporarily
   var verifyBtn=$('#ai-verify');
   var newBtn=verifyBtn.cloneNode(true);
@@ -333,7 +333,7 @@ window.changeAiAndRetry=function(){
   newBtn.innerHTML='<i class="bi bi-arrow-repeat"></i>更换配置并重试';
   newBtn.addEventListener('click',async function(){
     var key=$('#ai-key').value.trim(),ep=$('#ai-ep').value.trim(),mdl=$('#ai-mdl').value.trim();
-    $('.ferr').forEach(function(e){e.style.display='none';e.textContent=''});
+    $$('.ferr').forEach(function(e){e.style.display='none';e.textContent=''});
     var hasErr=false;
     if(!key){$('#ai-key-err').textContent='API Key 不能为空';$('#ai-key-err').style.display='block';hasErr=true}
     if(!ep){$('#ai-ep-err').textContent='Endpoint 不能为空';$('#ai-ep-err').style.display='block';hasErr=true}

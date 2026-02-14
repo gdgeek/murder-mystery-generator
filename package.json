@@ -3,7 +3,8 @@
   "private": true,
   "scripts": {
     "test": "pnpm -r test",
-    "build": "pnpm -r build"
+    "build": "pnpm -r build",
+    "lint": "eslint packages/*/src/**/*.ts packages/server/src/routes/ui/**/*.js"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
