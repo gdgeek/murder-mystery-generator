@@ -1,0 +1,197 @@
+/**
+ * UI HTML 结构
+ */
+export const UI_HTML = /* html */ `
+<nav class="nb"><a class="brand" href="/"><i class="bi bi-mask"></i>剧本杀创作工坊</a><span id="health"><span class="dot ld"></span><span class="hl">检查中</span></span></nav>
+<div class="mn">
+<!-- Tabs -->
+<div class="tabs">
+  <button class="tb on" data-tab="workflow"><i class="bi bi-diagram-3"></i> 分步创作</button>
+  <button class="tb" data-tab="quick"><i class="bi bi-lightning-charge"></i> 快速配置</button>
+  <button class="tb" data-tab="history"><i class="bi bi-clock-history"></i> 历史剧本</button>
+  <button class="tb" data-tab="raw"><i class="bi bi-terminal"></i> 原始请求</button>
+  <button class="tb" data-tab="worklog"><i class="bi bi-journal-text"></i> 工作日志</button>
+</div>
+
+<!-- Tab: Workflow -->
+<div class="tp on" id="tab-workflow">
+<div class="stp" id="stepper">
+  <div class="st on" data-step="0"><i class="bi bi-gear"></i>配置</div>
+  <div class="st" data-step="1"><i class="bi bi-play-circle"></i>会话</div>
+  <div class="st" data-step="2"><i class="bi bi-lightbulb"></i>企划</div>
+  <div class="st" data-step="3"><i class="bi bi-map"></i>大纲</div>
+  <div class="st" data-step="4"><i class="bi bi-book"></i>章节</div>
+  <div class="st" data-step="5"><i class="bi bi-trophy"></i>完成</div>
+</div>
+
+<!-- Step 0: Config -->
+<div class="sp-p" data-step="0">
+<div class="g"><div class="gh"><h3><i class="bi bi-person-badge"></i>选择你的侦探</h3></div>
+<div class="gb">
+<div id="wf-det-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.6rem">
+  <div class="det-card" data-val="detective"><i class="bi bi-search"></i><span class="det-name">正统侦探</span><span class="det-tag">悬疑</span></div>
+  <div class="det-card" data-val="drama"><i class="bi bi-emoji-laughing"></i><span class="det-name">戏影侦探</span><span class="det-tag">搞笑</span></div>
+  <div class="det-card" data-val="discover"><i class="bi bi-compass"></i><span class="det-name">寻迹侦探</span><span class="det-tag">探索</span></div>
+  <div class="det-card" data-val="destiny"><i class="bi bi-heart"></i><span class="det-name">命运侦探</span><span class="det-tag">浪漫</span></div>
+  <div class="det-card" data-val="dream"><i class="bi bi-cloud-moon"></i><span class="det-name">幻梦侦探</span><span class="det-tag">叙诡</span></div>
+  <div class="det-card" data-val="dimension"><i class="bi bi-robot"></i><span class="det-name">赛博侦探</span><span class="det-tag">科幻</span></div>
+  <div class="det-card" data-val="death"><i class="bi bi-moon-stars"></i><span class="det-name">幽冥侦探</span><span class="det-tag">恐怖</span></div>
+</div>
+<input type="hidden" id="wf-sty" value="">
+</div></div>
+
+<div id="wf-cfg-panel" style="display:none">
+<div class="g"><div class="gh"><h3><i class="bi bi-gear"></i>创建配置</h3><span class="et">POST /api/configs</span></div>
+<div class="gb">
+  <div id="wf-style-lock" style="display:flex;align-items:center;gap:.75rem;padding:.6rem .85rem;background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.25);border-radius:10px;margin-bottom:1rem">
+    <i id="wf-lock-icon" class="bi bi-search" style="font-size:1.3rem;color:var(--ac)"></i>
+    <div style="flex:1"><span id="wf-lock-name" style="font-weight:600;color:var(--bright);font-size:.9rem"></span><span id="wf-lock-desc" style="font-size:.75rem;color:var(--dim);margin-left:.5rem"></span></div>
+    <button type="button" class="btn bg" id="wf-sty-change" style="font-size:.72rem;padding:.3rem .6rem"><i class="bi bi-arrow-left-right"></i>更换</button>
+  </div>
+  <form id="wf-cf">
+  <div class="fg">
+    <div class="fi"><label>玩家人数</label><input type="number" id="wf-pc" value="4" min="1" max="6"></div>
+    <div class="fi"><label>时长 (小时)</label><input type="number" id="wf-dh" value="3" min="2" max="6"></div>
+    <div class="fi"><label>类型</label><select id="wf-gt"><option value="honkaku">本格 — 公平逻辑推理</option><option value="shin_honkaku">新本格 — 特殊设定+推理</option><option value="henkaku">变格 — 猎奇恐怖幻想</option></select></div>
+    <div class="fi"><label>年龄段</label><select id="wf-ag"><option value="adult">成年人</option><option value="college">大学生</option><option value="middle_school">中学生</option><option value="elementary">小学生</option></select></div>
+    <div class="fi s2"><label>还原 / 推理 比例</label><input type="range" id="wf-rt" min="0" max="100" value="60"><div class="rr"><span class="rb a">还原 <span id="wf-rr">60</span>%</span><span class="rb b">推理 <span id="wf-dr">40</span>%</span></div></div>
+    <div class="fi"><label>语言</label><select id="wf-ln"><option value="zh-CN">中文</option><option value="en-US">English</option><option value="ja-JP">日本語</option><option value="ko-KR">한국어</option></select></div>
+    <div class="fi"><label>时代</label><input type="text" id="wf-era" value="现代"></div>
+    <div class="fi"><label>地点</label><input type="text" id="wf-loc" value="别墅"></div>
+    <div class="fi"><label>主题</label><input type="text" id="wf-thm" value="复仇"></div>
+  </div>
+  <div class="br"><button type="submit" class="btn bp" id="wf-bc"><i class="bi bi-arrow-right"></i>创建配置并继续</button></div>
+  </form>
+</div>
+<div class="gf"><pre class="res" id="wf-cr">等待提交...</pre></div></div>
+</div>
+</div>
+
+<!-- Step 1: Session -->
+<div class="sp-p" data-step="1" style="display:none">
+<div class="g"><div class="gh"><h3><i class="bi bi-play-circle"></i>创建创作会话</h3><span class="et">POST /api/authoring-sessions</span></div>
+<div class="gb">
+  <div style="display:flex;gap:.75rem;align-items:flex-end;flex-wrap:wrap">
+    <div class="fi"><label>模式</label><select id="wf-md" style="width:160px"><option value="staged">staged（分步）</option><option value="vibe">vibe（一键）</option></select></div>
+    <button class="btn bp" id="wf-bs"><i class="bi bi-arrow-right"></i>创建并推进</button>
+  </div>
+  <div style="margin-top:.6rem;font-size:.78rem;color:var(--dim)">Config ID: <code id="wf-cid" style="color:var(--ac)">—</code></div>
+</div>
+<div class="gf"><pre class="res" id="wf-sr">等待操作...</pre></div></div>
+</div>
+
+<!-- Step 2: Plan -->
+<div class="sp-p" data-step="2" style="display:none">
+<div class="g"><div class="gh"><h3><i class="bi bi-lightbulb"></i>企划审阅</h3></div>
+<div class="gb">
+  <div id="wf-ps"></div>
+  <div class="fi" style="margin-top:.5rem"><label>企划内容（可编辑后保存）</label><textarea id="wf-pc2" disabled placeholder="等待生成..."></textarea></div>
+  <div class="br"><button class="btn bg" id="wf-psa" disabled><i class="bi bi-floppy"></i>保存编辑</button><button class="btn bs" id="wf-pa" disabled><i class="bi bi-check-lg"></i>批准并继续</button></div>
+</div>
+<div class="gf"><pre class="res" id="wf-pr">等待生成...</pre></div></div>
+</div>
+
+<!-- Step 3: Outline -->
+<div class="sp-p" data-step="3" style="display:none">
+<div class="g"><div class="gh"><h3><i class="bi bi-map"></i>大纲审阅</h3></div>
+<div class="gb">
+  <div id="wf-os"></div>
+  <div class="fi" style="margin-top:.5rem"><label>大纲内容（可编辑后保存）</label><textarea id="wf-oc" disabled placeholder="等待生成..."></textarea></div>
+  <div class="br"><button class="btn bg" id="wf-osa" disabled><i class="bi bi-floppy"></i>保存编辑</button><button class="btn bs" id="wf-oa" disabled><i class="bi bi-check-lg"></i>批准并继续</button></div>
+</div>
+<div class="gf"><pre class="res" id="wf-or">等待生成...</pre></div></div>
+</div>
+
+<!-- Step 4: Chapter -->
+<div class="sp-p" data-step="4" style="display:none">
+<div class="g"><div class="gh"><h3><i class="bi bi-book"></i>章节审阅</h3></div>
+<div class="gb">
+  <div id="wf-cs"></div>
+  <div class="fi" style="margin-top:.5rem"><label>当前章节内容</label><textarea id="wf-cc" style="min-height:220px" disabled placeholder="等待生成..."></textarea></div>
+  <div class="br"><button class="btn bg" id="wf-csa" disabled><i class="bi bi-floppy"></i>保存编辑</button><button class="btn bw" id="wf-crg" disabled><i class="bi bi-arrow-repeat"></i>重新生成</button><button class="btn bs" id="wf-ca" disabled><i class="bi bi-check-lg"></i>批准章节</button></div>
+</div>
+<div class="gf"><pre class="res" id="wf-chr">等待生成...</pre></div></div>
+</div>
+
+<!-- Step 5: Done -->
+<div class="sp-p" data-step="5" style="display:none">
+<div class="g"><div class="gh"><h3><i class="bi bi-trophy" style="color:var(--warn)"></i>创作完成</h3></div>
+<div class="gb"><div class="br" style="margin-top:0"><button class="btn bp" id="wf-asm"><i class="bi bi-box"></i>组装剧本</button><button class="btn bs" id="wf-exp"><i class="bi bi-download"></i>导出剧本</button><button class="btn bg" id="wf-rst"><i class="bi bi-arrow-counterclockwise"></i>重新开始</button></div></div>
+<div class="gf"><pre class="res" id="wf-ar">等待操作...</pre></div></div>
+</div>
+</div><!-- /workflow -->
+
+<!-- Tab: Quick -->
+<div class="tp" id="tab-quick">
+<div class="g"><div class="gh"><h3><i class="bi bi-lightning-charge"></i>快速创建配置</h3><span class="et">POST /api/configs</span></div>
+<div class="gb"><form id="qf">
+<div class="fi" style="margin-bottom:.75rem"><label>风格</label><select id="q-sty" style="width:100%"><option value="detective">悬疑 — 正统侦探：严密逻辑推理，证据链环环相扣</option><option value="drama">搞笑 — 戏影侦探：谐音梗、无厘头、喜剧反转</option><option value="discover">探索 — 寻迹侦探：多分支多结局，高可重玩性</option><option value="destiny">浪漫 — 命运侦探：命运交织，宿命羁绊</option><option value="dream">叙诡 — 幻梦侦探：梦幻叙事，叙述性诡计</option><option value="dimension">科幻 — 赛博侦探：全息投影、传送门等高科技</option><option value="death">恐怖 — 幽冥侦探：民俗/哥特/克苏鲁，充满未知</option></select></div>
+<div class="fg">
+  <div class="fi"><label>玩家</label><input type="number" id="q-pc" value="4" min="1" max="6"></div>
+  <div class="fi"><label>时长</label><input type="number" id="q-dh" value="3" min="2" max="6"></div>
+  <div class="fi"><label>类型</label><select id="q-gt"><option value="honkaku">本格 — 公平逻辑推理</option><option value="shin_honkaku">新本格 — 特殊设定+推理</option><option value="henkaku">变格 — 猎奇恐怖幻想</option></select></div>
+  <div class="fi"><label>年龄段</label><select id="q-ag"><option value="adult">成年人</option><option value="college">大学生</option></select></div>
+  <div class="fi"><label>语言</label><select id="q-ln"><option value="zh-CN">中文</option><option value="en-US">English</option><option value="ja-JP">日本語</option><option value="ko-KR">한국어</option></select></div>
+  <div class="fi"><label>时代</label><input type="text" id="q-era" value="现代"></div>
+  <div class="fi"><label>地点</label><input type="text" id="q-loc" value="别墅"></div>
+  <div class="fi"><label>主题</label><input type="text" id="q-thm" value="复仇"></div>
+</div>
+<div class="br"><button type="submit" class="btn bp"><i class="bi bi-send"></i>创建</button></div>
+</form></div>
+<div class="gf"><pre class="res" id="q-res">等待提交...</pre></div></div>
+</div>
+
+<!-- Tab: History -->
+<div class="tp" id="tab-history">
+<div class="g"><div class="gh"><h3><i class="bi bi-clock-history"></i>历史剧本</h3><button class="btn bg" id="hist-refresh" style="font-size:.72rem;padding:.3rem .6rem"><i class="bi bi-arrow-clockwise"></i>刷新</button></div>
+<div class="gb">
+  <div id="hist-list" style="display:flex;flex-direction:column;gap:.5rem"><div style="color:var(--dim);font-size:.82rem">点击刷新加载剧本列表...</div></div>
+</div></div>
+</div>
+
+<!-- Tab: Raw -->
+<div class="tp" id="tab-raw">
+<div class="g"><div class="gh"><h3><i class="bi bi-terminal"></i>自定义请求</h3></div>
+<div class="gb">
+  <div class="rw"><select id="r-m"><option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option></select><input type="text" id="r-u" value="/api/configs" style="font-family:'JetBrains Mono',monospace;font-size:.82rem"><button class="btn bp" id="r-go"><i class="bi bi-send"></i>发送</button></div>
+  <textarea id="r-b" placeholder='{"key":"value"}' style="width:100%;min-height:80px"></textarea>
+</div>
+<div class="gf"><pre class="res" id="r-res">等待发送...</pre></div></div>
+</div>
+
+<!-- Tab: Work Log -->
+<div class="tp" id="tab-worklog">
+<div class="g"><div class="gh"><h3><i class="bi bi-journal-text"></i>工作日志</h3>
+<div style="display:flex;gap:.4rem">
+  <button class="btn bg wl-sw on" data-wl="raw" style="font-size:.72rem;padding:.3rem .6rem"><i class="bi bi-file-text"></i>原始记录</button>
+  <button class="btn bg wl-sw" data-wl="diary" style="font-size:.72rem;padding:.3rem .6rem"><i class="bi bi-calendar-check"></i>每日日记</button>
+</div></div>
+<div class="gb">
+  <div id="wl-raw-view">
+    <div id="wl-raw-content" style="font-family:'JetBrains Mono',monospace;font-size:.8rem;line-height:1.8;color:var(--txt);max-height:60vh;overflow:auto;padding:.5rem;background:rgba(0,0,0,.3);border-radius:8px;border:1px solid var(--bdr)">加载中...</div>
+  </div>
+  <div id="wl-diary-view" style="display:none">
+    <div id="wl-diary-list" style="display:flex;flex-direction:column;gap:.5rem;margin-bottom:1rem"></div>
+    <div id="wl-diary-detail" style="display:none;font-family:'JetBrains Mono',monospace;font-size:.8rem;line-height:1.8;color:var(--txt);max-height:50vh;overflow:auto;padding:.75rem;background:rgba(0,0,0,.3);border-radius:8px;border:1px solid var(--bdr)"></div>
+  </div>
+</div></div>
+</div>
+
+</div><!-- /mn -->
+
+<!-- AI Config Modal -->
+<div id="ai-modal" class="modal-overlay" style="display:none">
+<div class="modal-box">
+  <h3><i class="bi bi-cpu"></i>AI 配置</h3>
+  <div class="hint">服务器未配置 AI 服务，请输入你的 AI 信息以继续使用。配置仅用于本次生成，不会被保存。</div>
+  <div class="mfi"><label>Provider</label><select id="ai-prov"><option value="openai">OpenAI</option><option value="anthropic">Anthropic</option><option value="doubao">豆包 (Doubao)</option><option value="custom">自定义</option></select></div>
+  <div class="mfi"><label>API Key</label><input type="password" id="ai-key" placeholder="输入 API Key"><div class="ferr" id="ai-key-err"></div></div>
+  <div class="mfi"><label>Endpoint</label><input type="text" id="ai-ep" placeholder="输入 Endpoint URL"><div class="ferr" id="ai-ep-err"></div></div>
+  <div class="mfi"><label>Model</label><input type="text" id="ai-mdl" placeholder="输入模型名称"><div class="ferr" id="ai-mdl-err"></div></div>
+  <div class="msts" id="ai-msts"></div>
+  <div class="mbtn-row"><button class="btn bp" id="ai-verify" style="flex:1"><i class="bi bi-plug"></i>验证并进入</button></div>
+</div>
+</div>
+
+<footer>剧本杀创作工坊 · Murder Mystery Generator</footer>
+`;

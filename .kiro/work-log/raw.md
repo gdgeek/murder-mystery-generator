@@ -92,3 +92,38 @@
 **解决：** 将工作日志变更 commit 并 push 到 main 分支，触发 GitHub Actions CI 流水线。
 **涉及文件：** .kiro/work-log/raw.md
 ---
+
+---
+### 2026-02-14 17:35
+**问题：** 确认刷新页面时 AI 生成状态能正确恢复（如大纲生成中不会回退到上一步）
+**解决：** 确认 restore 函数通过 URL hash 保存 session ID 并在刷新时恢复状态的逻辑正确。发现 STATE_STEP 映射缺少 vibe 模式的 `generating` 状态，导致该模式下刷新页面会错误显示"生成失败"。添加 `generating:2` 映射修复。
+**涉及文件：** packages/server/src/routes/ui.ts
+---
+
+---
+### 2026-02-14 17:45
+**问题：** 询问如何部署 Docker Compose 项目
+**解决：** 查看了 docker-compose.yml 和 .env.example，给出了三步部署流程（准备环境变量、docker compose up -d、验证健康检查），并说明了当前是开发模式（volume 挂载 + tsx 运行），生产部署建议写多阶段 Dockerfile。
+**涉及文件：** 无
+---
+
+---
+### 2026-02-14 17:55
+**问题：** 已有构建好的 Docker 镜像，如何在服务器上配置 docker compose 进行生产部署
+**解决：** 创建了 `docker-compose.prod.yml` 生产部署配置（使用镜像而非挂载源码、端口绑定 127.0.0.1、restart always、Redis 持久化）和 `.env.prod.example` 环境变量模板。给出了完整的服务器部署步骤：构建/推送镜像、准备迁移文件、配置环境变量、启动和更新流程。
+**涉及文件：** docker-compose.prod.yml, .env.prod.example
+---
+
+---
+### 2026-02-14 18:05
+**问题：** 服务器不设置大模型参数，是否可以让用户自行临时输入 AI 配置，生成后自动删除不保留
+**解决：** 确认该功能（ephemeral-ai-config spec）已全部实现。向用户说明了完整工作流程：前端自动检测服务器 AI 状态，未配置时显示配置表单，用户输入的 apiKey 仅存内存中的临时适配器，会话结束后自动清理，数据库只保留 provider/model 元信息。
+**涉及文件：** 无
+---
+
+---
+### 2026-02-14 18:15
+**问题：** 在本地测试临时 AI 配置（ephemeral-ai-config）功能
+**解决：** 将容器内 `config/llm-routing.json` 重命名为 `.bak`，注释掉 `.env` 中所有 LLM 相关环境变量（[已脱敏]），通过 `docker compose up -d server` 重建容器使新环境变量生效。验证 `GET /api/ai-status` 返回 `unconfigured`，页面可正常访问。备份了原始 `.env` 为 `.env.bak`，测试完成后可一键恢复。
+**涉及文件：** .env, config/llm-routing.json（容器内临时重命名）
+---
