@@ -96,6 +96,7 @@ export class PromptBuilder implements IPromptBuilder {
     const isShinHonkaku = config.gameType === GameType.SHIN_HONKAKU;
 
     let outputFormat = `{
+  "title": "剧本标题（要求：有悬念感、吸引人、能激发好奇心，如'血色婚纱下的秘密'、'消失的第七个人'、'午夜钟声的回响'，避免过于简单直白的词语）",
   "worldOverview": "世界观概述",
   "characters": [
     { "name": "角色名", "role": "角色定位", "relationshipSketch": "关系草图" }

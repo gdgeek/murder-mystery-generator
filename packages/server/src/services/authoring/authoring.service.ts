@@ -1197,12 +1197,20 @@ export class AuthoringService {
     if (!branchStructure) throw new Error('Missing branch_structure chapter');
 
     const adapter = this.getAdapterForSession(sessionId);
+
+    // Generate title: prefer LLM-generated title from plan, fallback to config theme
+    const plan = (session.planOutput?.authorEdited ?? session.planOutput?.llmOriginal) as import('@murder-mystery/shared').ScriptPlan | undefined;
+    let title = `${config.theme} - ${config.era}`;
+    if (plan?.title && plan.title.length > 2) {
+      title = plan.title;
+    }
+
     const script: Script = {
       id: uuidv4(),
       version: 'v1.0',
       configId: config.id,
       config,
-      title: `${config.theme} - ${config.era}`,
+      title,
       dmHandbook,
       playerHandbooks,
       materials,

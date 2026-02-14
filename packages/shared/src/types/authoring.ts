@@ -28,6 +28,8 @@ export type ChapterType = 'dm_handbook' | 'player_handbook' | 'materials' | 'bra
 
 /** 企划书 */
 export interface ScriptPlan {
+  /** 剧本标题（吸引人的、有悬念感的标题） */
+  title?: string;
   worldOverview: string;
   characters: {
     name: string;

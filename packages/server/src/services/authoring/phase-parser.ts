@@ -77,6 +77,7 @@ export class PhaseParser implements IPhaseParser {
     }
 
     return {
+      ...(typeof data.title === 'string' && data.title.trim() ? { title: data.title as string } : {}),
       worldOverview: data.worldOverview as string,
       characters: (data.characters as Array<Record<string, string>>).map(c => ({
         name: c.name,

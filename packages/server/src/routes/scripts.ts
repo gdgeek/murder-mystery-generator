@@ -12,12 +12,27 @@ import { GeneratorService } from '../services/generator.service';
 import { ConfigService } from '../services/config.service';
 import { SkillService } from '../services/skill.service';
 import { createLLMAdapter } from '../adapters/create-llm-adapter';
+import { AuthoringService } from '../services/authoring/authoring.service';
+import { Script } from '@murder-mystery/shared';
 
 const router: Router = Router();
 const configService = new ConfigService();
 const skillService = new SkillService();
 const llmAdapter = createLLMAdapter();
 const generatorService = new GeneratorService(llmAdapter, skillService);
+const authoringService = new AuthoringService(llmAdapter, skillService, generatorService, configService);
+
+/** Resolve script by ID, falling back to authoring session lookup */
+async function resolveScript(id: string): Promise<Script | null> {
+  const script = await generatorService.getScript(id);
+  if (script) return script;
+  // Try as authoring session ID
+  const session = await authoringService.getSession(id);
+  if (session?.scriptId) {
+    return generatorService.getScript(session.scriptId);
+  }
+  return null;
+}
 
 /**
  * @openapi
@@ -279,7 +294,7 @@ router.get('/export-all', async (_req: Request, res: Response) => {
  */
 router.get('/:id', async (req: Request, res: Response) => {
   try {
-    const script = await generatorService.getScript(req.params.id);
+    const script = await resolveScript(req.params.id);
     if (!script) {
       res.status(404).json({ error: 'Script not found' });
       return;
@@ -320,7 +335,7 @@ router.get('/:id', async (req: Request, res: Response) => {
  */
 router.get('/:id/export', async (req: Request, res: Response) => {
   try {
-    const script = await generatorService.getScript(req.params.id);
+    const script = await resolveScript(req.params.id);
     if (!script) {
       res.status(404).json({ error: 'Script not found' });
       return;

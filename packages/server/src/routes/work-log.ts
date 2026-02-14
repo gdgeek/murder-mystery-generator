@@ -14,20 +14,29 @@ function root(): string {
 
 /**
  * GET /api/work-log/raw
- * 返回所有原始日志内容（raw.md + raw-YYYY-MM-DD.md 按日期排序合并）
+ * 返回原始日志内容。支持 ?date=YYYY-MM-DD 按日期筛选，不传则返回全部合并。
  */
-router.get('/raw', (_req, res) => {
+router.get('/raw', (req, res) => {
   const dir = path.join(root(), '.kiro', 'work-log');
   if (!fs.existsSync(dir)) {
     return res.json({ content: '' });
   }
+  const dateParam = req.query.date as string | undefined;
+  if (dateParam) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateParam)) {
+      return res.status(400).json({ error: '日期格式无效，应为 YYYY-MM-DD' });
+    }
+    const file = path.join(dir, `raw-${dateParam}.md`);
+    if (!fs.existsSync(file)) {
+      return res.json({ content: '', date: dateParam });
+    }
+    return res.json({ content: fs.readFileSync(file, 'utf-8'), date: dateParam });
+  }
   const parts: string[] = [];
-  // 旧的 raw.md（如果存在）
   const legacy = path.join(dir, 'raw.md');
   if (fs.existsSync(legacy)) {
     parts.push(fs.readFileSync(legacy, 'utf-8'));
   }
-  // 按日期分割的 raw-YYYY-MM-DD.md 文件
   const dated = fs.readdirSync(dir)
     .filter(f => /^raw-\d{4}-\d{2}-\d{2}\.md$/.test(f))
     .sort();
@@ -35,6 +44,23 @@ router.get('/raw', (_req, res) => {
     parts.push(fs.readFileSync(path.join(dir, f), 'utf-8'));
   }
   res.json({ content: parts.join('\n') });
+});
+
+/**
+ * GET /api/work-log/dates
+ * 返回所有有原始日志的日期列表（倒序）
+ */
+router.get('/dates', (_req, res) => {
+  const dir = path.join(root(), '.kiro', 'work-log');
+  if (!fs.existsSync(dir)) {
+    return res.json({ dates: [] });
+  }
+  const dates = fs.readdirSync(dir)
+    .filter(f => /^raw-\d{4}-\d{2}-\d{2}\.md$/.test(f))
+    .map(f => f.replace('raw-', '').replace('.md', ''))
+    .sort()
+    .reverse();
+  res.json({ dates });
 });
 
 /**
