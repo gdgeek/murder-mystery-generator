@@ -21,8 +21,8 @@ function showAiBadge(provider,model,source){
   var label='<i class="bi bi-cpu"></i><span class="ai-src '+(isServer?'ai-src-s':'ai-src-u')+'">'+tag+'</span>'+(provider||'')+(model?' / '+model:'');
   el.innerHTML=label;
   el.style.display='inline-flex';el.className='ai-badge';
-  if(isServer){el.style.cursor='default';el.onclick=null}
-  else{el.style.cursor='pointer';el.onclick=function(){var cb=$('#ai-modal-close');if(cb)cb.style.display='inline-flex';showAiModalForSession(function(){location.reload()})}}
+  el.style.cursor='pointer';
+  el.onclick=function(){var cb=$('#ai-modal-close');if(cb)cb.style.display='inline-flex';showAiModalForSession(function(){location.reload()})}
 }
 $('#ai-modal-close').addEventListener('click',function(){$('#ai-modal').style.display='none'});
 (async function(){

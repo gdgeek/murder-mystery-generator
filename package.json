@@ -1,10 +1,11 @@
 {
   "name": "murder-mystery-generator",
   "private": true,
+  "type": "module",
   "scripts": {
     "test": "pnpm -r test",
     "build": "pnpm -r build",
-    "lint": "eslint packages/*/src/**/*.ts packages/server/src/routes/ui/**/*.js"
+    "lint": "eslint --no-warn-ignored packages/*/src/**/*.ts packages/server/src/routes/ui/**/*.js"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
