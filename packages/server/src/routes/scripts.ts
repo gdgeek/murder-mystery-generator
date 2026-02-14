@@ -13,7 +13,7 @@ import { ConfigService } from '../services/config.service';
 import { SkillService } from '../services/skill.service';
 import { createLLMAdapter } from '../adapters/create-llm-adapter';
 import { AuthoringService } from '../services/authoring/authoring.service';
-import { Script } from '@murder-mystery/shared';
+import { Script, AiStepMeta } from '@murder-mystery/shared';
 
 const router: Router = Router();
 const configService = new ConfigService();
@@ -340,10 +340,54 @@ router.get('/:id/export', async (req: Request, res: Response) => {
       res.status(404).json({ error: 'Script not found' });
       return;
     }
+
+    // Build AI usage summary from authoring session
+    let aiUsageSummary: {
+      steps: Array<{ phase: string; index?: number; meta: AiStepMeta }>;
+      totalTokens: { prompt: number; completion: number; total: number };
+      totalResponseTimeMs: number;
+    } | undefined;
+
+    const session = await authoringService.getSessionByScriptId(script.id);
+    if (session) {
+      const steps: Array<{ phase: string; index?: number; meta: AiStepMeta }> = [];
+      const totals = { prompt: 0, completion: 0, total: 0 };
+      let totalTime = 0;
+
+      if (session.planOutput?.aiMeta) {
+        steps.push({ phase: 'plan', meta: session.planOutput.aiMeta });
+        totals.prompt += session.planOutput.aiMeta.tokenUsage.prompt;
+        totals.completion += session.planOutput.aiMeta.tokenUsage.completion;
+        totals.total += session.planOutput.aiMeta.tokenUsage.total;
+        totalTime += session.planOutput.aiMeta.responseTimeMs;
+      }
+      if (session.outlineOutput?.aiMeta) {
+        steps.push({ phase: 'outline', meta: session.outlineOutput.aiMeta });
+        totals.prompt += session.outlineOutput.aiMeta.tokenUsage.prompt;
+        totals.completion += session.outlineOutput.aiMeta.tokenUsage.completion;
+        totals.total += session.outlineOutput.aiMeta.tokenUsage.total;
+        totalTime += session.outlineOutput.aiMeta.responseTimeMs;
+      }
+      for (const chapter of session.chapters) {
+        if (chapter.aiMeta) {
+          steps.push({ phase: 'chapter', index: chapter.index, meta: chapter.aiMeta });
+          totals.prompt += chapter.aiMeta.tokenUsage.prompt;
+          totals.completion += chapter.aiMeta.tokenUsage.completion;
+          totals.total += chapter.aiMeta.tokenUsage.total;
+          totalTime += chapter.aiMeta.responseTimeMs;
+        }
+      }
+
+      if (steps.length > 0) {
+        aiUsageSummary = { steps, totalTokens: totals, totalResponseTimeMs: totalTime };
+      }
+    }
+
+    const exportData = { ...script, aiUsageSummary };
     const filename = encodeURIComponent(script.title || script.id) + '.json';
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${filename}`);
-    res.send(JSON.stringify(script, null, 2));
+    res.send(JSON.stringify(exportData, null, 2));
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }

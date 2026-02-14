@@ -16,6 +16,7 @@ import {
   PhaseOutput,
   FailureInfo,
   ScriptStatus,
+  AiStepMeta,
 } from '@murder-mystery/shared';
 import type {
   Script,
@@ -24,6 +25,7 @@ import type {
   Material,
   BranchStructure,
   ScriptConfig,
+  LLMResponse,
 } from '@murder-mystery/shared';
 import type { EphemeralAiConfig } from '@murder-mystery/shared';
 import { ILLMAdapter } from '../../adapters/llm-adapter.interface';
@@ -71,6 +73,29 @@ export class AuthoringService {
       return this.llmAdapter;
     }
     throw new Error('No AI configuration available. Please provide ephemeralAiConfig.');
+  }
+
+  /** 根据 scriptId 查找关联的创作会话 */
+  async getSessionByScriptId(scriptId: string): Promise<AuthoringSession | null> {
+    const [rows] = await pool.execute(
+      'SELECT * FROM authoring_sessions WHERE script_id = ? LIMIT 1',
+      [scriptId],
+    );
+    const arr = rows as Record<string, unknown>[];
+    if (arr.length === 0) return null;
+    return this.rowToSession(arr[0]);
+  }
+
+
+  /** Build AiStepMeta from adapter + LLM response */
+  private buildAiMeta(adapter: ILLMAdapter, response: LLMResponse): AiStepMeta {
+    return {
+      provider: adapter.getProviderName(),
+      model: adapter.getDefaultModel(),
+      tokenUsage: response.tokenUsage,
+      responseTimeMs: response.responseTimeMs,
+      generatedAt: new Date(),
+    };
   }
 
   /**
@@ -297,7 +322,8 @@ export class AuthoringService {
         AuthoringService.ALL_CATEGORIES,
       );
       const request = promptBuilder.buildPlanningPrompt(config, skills);
-      const response = await this.getAdapterForSession(session.id).send(request);
+      const adapter = this.getAdapterForSession(session.id);
+      const response = await adapter.send(request);
       session.lastStepTokens = response.tokenUsage;
       const plan = phaseParser.parsePlan(response.content);
 
@@ -308,6 +334,7 @@ export class AuthoringService {
         edits: [],
         approved: false,
         generatedAt: new Date(),
+        aiMeta: this.buildAiMeta(adapter, response),
       };
 
       // Persist output before state transition (Requirement 5.1)
@@ -369,11 +396,14 @@ export class AuthoringService {
         previousChapters,
         (session.planOutput?.authorEdited ?? session.planOutput?.llmOriginal) as import('@murder-mystery/shared').ScriptPlan | undefined,
       );
-      const response = await this.getAdapterForSession(session.id).send(request);
+      const adapter = this.getAdapterForSession(session.id);
+      const response = await adapter.send(request);
+      session.lastStepTokens = response.tokenUsage;
       const chapter = phaseParser.parseChapter(response.content, chapterType);
 
       // Set correct index and characterId
       chapter.index = chapterIndex;
+      chapter.aiMeta = this.buildAiMeta(adapter, response);
       if (chapterType === 'player_handbook') {
         chapter.characterId = `player-${chapterIndex}`;
       }
@@ -559,7 +589,8 @@ export class AuthoringService {
       );
       const approvedPlan = (session.planOutput!.authorEdited ?? session.planOutput!.llmOriginal) as import('@murder-mystery/shared').ScriptPlan;
       const request = promptBuilder.buildDesignPrompt(config, approvedPlan, skills, session.planOutput!.authorNotes);
-      const response = await this.getAdapterForSession(session.id).send(request);
+      const adapter = this.getAdapterForSession(session.id);
+      const response = await adapter.send(request);
       session.lastStepTokens = response.tokenUsage;
       const outline = phaseParser.parseOutline(response.content);
 
@@ -570,6 +601,7 @@ export class AuthoringService {
         edits: [],
         approved: false,
         generatedAt: new Date(),
+        aiMeta: this.buildAiMeta(adapter, response),
       };
 
       // Persist output before state transition (Requirement 5.2)
@@ -743,9 +775,11 @@ export class AuthoringService {
           previousChapters,
           approvedPlan,
         );
-        const response = await this.getAdapterForSession(session.id).send(request);
+        const adapter = this.getAdapterForSession(session.id);
+        const response = await adapter.send(request);
         const chapter = phaseParser.parseChapter(response.content, chapterType);
         chapter.index = chapterIndex;
+        chapter.aiMeta = this.buildAiMeta(adapter, response);
         if (chapterType === 'player_handbook') {
           chapter.characterId = `player-${chapterIndex}`;
         }
@@ -844,11 +878,13 @@ export class AuthoringService {
         previousChapters,
         approvedPlan,
       );
-      const response = await this.getAdapterForSession(session.id).send(request);
+      const adapter = this.getAdapterForSession(session.id);
+      const response = await adapter.send(request);
       session.lastStepTokens = response.tokenUsage;
       const chapter = phaseParser.parseChapter(response.content, chapterType);
 
       chapter.index = chapterIndex;
+      chapter.aiMeta = this.buildAiMeta(adapter, response);
       if (chapterType === 'player_handbook') {
         chapter.characterId = `player-${chapterIndex}`;
       }
@@ -1073,9 +1109,11 @@ export class AuthoringService {
             previousChapters,
             approvedPlan,
           );
-          const response = await this.getAdapterForSession(session.id).send(request);
+          const adapter = this.getAdapterForSession(session.id);
+          const response = await adapter.send(request);
           const chapter = phaseParser.parseChapter(response.content, chapterType);
           chapter.index = chapterIndex;
+          chapter.aiMeta = this.buildAiMeta(adapter, response);
           if (chapterType === 'player_handbook') {
             chapter.characterId = `player-${chapterIndex}`;
           }

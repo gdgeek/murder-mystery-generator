@@ -24,6 +24,15 @@ export type PhaseName = 'plan' | 'outline' | 'chapter';
 /** 章节类型 */
 export type ChapterType = 'dm_handbook' | 'player_handbook' | 'materials' | 'branch_structure';
 
+/** AI 生成元信息（附加到每个生成步骤） */
+export interface AiStepMeta {
+  provider: string;
+  model: string;
+  tokenUsage: TokenUsage;
+  responseTimeMs: number;
+  generatedAt: Date;
+}
+
 // ─── 企划书 ───
 
 /** 企划书 */
@@ -90,6 +99,7 @@ export interface Chapter {
   characterId?: string;       // 仅 player_handbook 类型
   content: unknown;           // DMHandbook | PlayerHandbook | Material[] | BranchStructure
   generatedAt: Date;
+  aiMeta?: AiStepMeta;       // AI 生成元信息
 }
 
 // ─── 编辑与产出物 ───
@@ -111,6 +121,7 @@ export interface PhaseOutput {
   approved: boolean;
   approvedAt?: Date;
   generatedAt: Date;
+  aiMeta?: AiStepMeta;       // AI 生成元信息
 }
 
 // ─── 筛选与失败信息 ───
