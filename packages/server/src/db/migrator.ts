@@ -5,12 +5,21 @@
 
 import { readFileSync, readdirSync } from 'node:fs';
 import { resolve, join } from 'node:path';
-import { pool } from './mysql';
+import mysql from 'mysql2/promise';
 
 const MIGRATIONS_DIR = resolve(__dirname, 'migrations');
 
 export async function runMigrations(): Promise<void> {
-  const conn = await pool.getConnection();
+  // Create a dedicated connection with multipleStatements enabled
+  const conn = await mysql.createConnection({
+    host: process.env.DB_HOST || 'localhost',
+    port: Number(process.env.DB_PORT) || 3306,
+    user: process.env.DB_USER || 'root',
+    password: process.env.DB_PASSWORD || '',
+    database: process.env.DB_NAME || 'murder_mystery',
+    multipleStatements: true,
+  });
+
   try {
     // Ensure migrations tracking table exists
     await conn.query(`
@@ -33,19 +42,11 @@ export async function runMigrations(): Promise<void> {
     for (const file of files) {
       if (executed.has(file)) continue;
 
-      const sql = readFileSync(join(MIGRATIONS_DIR, file), 'utf-8');
+      const sql = readFileSync(join(MIGRATIONS_DIR, file), 'utf-8').trim();
+      if (!sql) continue;
+
       console.log(`[migrator] Running ${file}...`);
-
-      // Split by semicolons to handle multi-statement migrations
-      const statements = sql
-        .split(';')
-        .map(s => s.trim())
-        .filter(s => s.length > 0 && !s.startsWith('--'));
-
-      for (const stmt of statements) {
-        await conn.query(stmt);
-      }
-
+      await conn.query(sql);
       await conn.query('INSERT INTO _migrations (name) VALUES (?)', [file]);
       count++;
       console.log(`[migrator] ✓ ${file}`);
@@ -57,6 +58,6 @@ export async function runMigrations(): Promise<void> {
       console.log(`[migrator] Ran ${count} migration(s).`);
     }
   } finally {
-    conn.release();
+    await conn.end();
   }
 }
