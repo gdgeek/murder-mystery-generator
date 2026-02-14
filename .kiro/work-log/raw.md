@@ -36,3 +36,17 @@
 **解决：** 创建了 agentStop hook（log-qa-entry）在每次对话结束后自动追加问答记录到 .kiro/work-log/raw.md。用户后续可手动触发总结 hook 生成日报。
 **涉及文件：** .kiro/hooks/log-qa-entry.json
 ---
+
+---
+### 2026-02-14 16:16
+**问题：** 继续完成上次未完成的两个任务：Task 5（AI模型版本记录）的验证和 Task 6（每日工作日记 hook）的第二个 hook 创建
+**解决：** 确认 Task 5 的 aiProvider/aiModel 代码已提交，运行全部 394 个测试和 build 均通过。创建了第二个 hook `daily-summary.kiro.hook`（userTriggered 类型），用于手动触发生成每日工作日记。两个 hook 和工作日志一起提交推送到 main。
+**涉及文件：** .kiro/hooks/daily-summary.kiro.hook, .kiro/work-log/raw.md
+---
+
+---
+### 2026-02-14 16:25
+**问题：** 每日工作日记 hook 需要增加昨日工作评价和改进建议
+**解决：** 更新了 daily-summary.kiro.hook 的日记模板，新增「工作评价」（从效率、代码质量、问题解决思路等角度客观评价）和「改进建议」（给出具体可执行的改进行动项）两个板块。
+**涉及文件：** .kiro/hooks/daily-summary.kiro.hook
+---

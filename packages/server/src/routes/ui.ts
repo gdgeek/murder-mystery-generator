@@ -105,6 +105,7 @@ select option{background:#1e1b4b;color:var(--txt)}
   <button class="tb" data-tab="quick"><i class="bi bi-lightning-charge"></i> 快速配置</button>
   <button class="tb" data-tab="history"><i class="bi bi-clock-history"></i> 历史剧本</button>
   <button class="tb" data-tab="raw"><i class="bi bi-terminal"></i> 原始请求</button>
+  <button class="tb" data-tab="worklog"><i class="bi bi-journal-text"></i> 工作日志</button>
 </div>
 
 <!-- Tab: Workflow -->
@@ -254,6 +255,24 @@ select option{background:#1e1b4b;color:var(--txt)}
   <textarea id="r-b" placeholder='{"key":"value"}' style="width:100%;min-height:80px"></textarea>
 </div>
 <div class="gf"><pre class="res" id="r-res">等待发送...</pre></div></div>
+</div>
+
+<!-- Tab: Work Log -->
+<div class="tp" id="tab-worklog">
+<div class="g"><div class="gh"><h3><i class="bi bi-journal-text"></i>工作日志</h3>
+<div style="display:flex;gap:.4rem">
+  <button class="btn bg wl-sw on" data-wl="raw" style="font-size:.72rem;padding:.3rem .6rem"><i class="bi bi-file-text"></i>原始记录</button>
+  <button class="btn bg wl-sw" data-wl="diary" style="font-size:.72rem;padding:.3rem .6rem"><i class="bi bi-calendar-check"></i>每日日记</button>
+</div></div>
+<div class="gb">
+  <div id="wl-raw-view">
+    <div id="wl-raw-content" style="font-family:'JetBrains Mono',monospace;font-size:.8rem;line-height:1.8;color:var(--txt);max-height:60vh;overflow:auto;padding:.5rem;background:rgba(0,0,0,.3);border-radius:8px;border:1px solid var(--bdr)">加载中...</div>
+  </div>
+  <div id="wl-diary-view" style="display:none">
+    <div id="wl-diary-list" style="display:flex;flex-direction:column;gap:.5rem;margin-bottom:1rem"></div>
+    <div id="wl-diary-detail" style="display:none;font-family:'JetBrains Mono',monospace;font-size:.8rem;line-height:1.8;color:var(--txt);max-height:50vh;overflow:auto;padding:.75rem;background:rgba(0,0,0,.3);border-radius:8px;border:1px solid var(--bdr)"></div>
+  </div>
+</div></div>
 </div>
 
 </div><!-- /mn -->
@@ -421,6 +440,14 @@ function esc(s){const d=document.createElement('div');d.textContent=s;return d.i
 $('#hist-refresh').addEventListener('click',loadHistory);
 // Auto-load when switching to history tab
 $$('.tb').forEach(b=>{if(b.dataset.tab==='history')b.addEventListener('click',loadHistory)});
+
+// Work Log tab
+function renderMd(md){return md.replace(/^### (.+)/gm,'<h3 style="color:var(--ac);font-size:.9rem;margin:1rem 0 .3rem;font-family:inherit">$1</h3>').replace(/\*\*(.+?)\*\*/g,'<strong style="color:var(--bright)">$1</strong>').replace(/^---$/gm,'<hr style="border:0;border-top:1px solid var(--bdr);margin:.6rem 0">').replace(/^# (.+)/gm,'<h1 style="color:var(--bright);font-size:1.1rem;margin-bottom:.5rem;font-family:inherit">$1</h1>').replace(/^## (.+)/gm,'<h2 style="color:var(--ac2);font-size:.92rem;margin:1rem 0 .3rem;font-family:inherit">$1</h2>').replace(/^- (.+)/gm,'<div style="padding-left:.8rem;margin:.15rem 0">• $1</div>').replace(/\n/g,'<br>')}
+async function loadWorkLogRaw(){const el=$('#wl-raw-content');el.innerHTML='<span class="sp"></span> 加载中...';try{const r=await api('GET','/api/work-log/raw');if(r.ok&&r.data.content){el.innerHTML=renderMd(r.data.content)}else{el.innerHTML='<span style="color:var(--dim)">暂无工作日志</span>'}}catch{el.innerHTML='<span style="color:var(--err)">加载失败</span>'}}
+async function loadDiaryList(){const el=$('#wl-diary-list');el.innerHTML='<span class="sp"></span> 加载中...';try{const r=await api('GET','/api/work-log/diary');if(!r.ok||!r.data.entries||r.data.entries.length===0){el.innerHTML='<div style="color:var(--dim);font-size:.82rem">暂无每日日记，请手动触发 daily-summary hook 生成</div>';return}el.innerHTML='';r.data.entries.forEach(e=>{const d=document.createElement('div');d.className='hist-item';d.style.cursor='pointer';d.innerHTML='<div class="hist-info"><div class="hist-title"><i class="bi bi-calendar-event" style="color:var(--ac);margin-right:.4rem"></i>'+esc(e.date)+'</div><div class="hist-meta">点击查看详情</div></div>';d.addEventListener('click',()=>loadDiaryDetail(e.date));el.appendChild(d)})}catch{el.innerHTML='<div style="color:var(--err);font-size:.82rem">加载失败</div>'}}
+async function loadDiaryDetail(date){const el=$('#wl-diary-detail');el.style.display='block';el.innerHTML='<span class="sp"></span> 加载中...';try{const r=await api('GET','/api/work-log/diary/'+date);if(r.ok){el.innerHTML='<button class="btn bg" onclick="this.parentElement.style.display=\'none\'" style="font-size:.7rem;padding:.2rem .5rem;margin-bottom:.5rem"><i class="bi bi-arrow-left"></i>返回</button>'+renderMd(r.data.content)}else{el.innerHTML='<span style="color:var(--err)">'+esc(r.data.error||'加载失败')+'</span>'}}catch{el.innerHTML='<span style="color:var(--err)">网络错误</span>'}}
+$('.wl-sw').forEach(b=>{b.addEventListener('click',()=>{$('.wl-sw').forEach(x=>x.classList.remove('on'));b.classList.add('on');const t=b.dataset.wl;$('#wl-raw-view').style.display=t==='raw'?'block':'none';$('#wl-diary-view').style.display=t==='diary'?'block':'none';if(t==='raw')loadWorkLogRaw();if(t==='diary')loadDiaryList()})});
+$('.tb').forEach(b=>{if(b.dataset.tab==='worklog')b.addEventListener('click',loadWorkLogRaw)});
 })();
 </script>
 </body>

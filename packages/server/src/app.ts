@@ -11,6 +11,7 @@ import { tagRouter, scriptTagRouter } from './routes/tags';
 import authoringRouter from './routes/authoring';
 import aiStatusRouter from './routes/ai-status';
 import uiRouter from './routes/ui';
+import workLogRouter from './routes/work-log';
 import { swaggerSpec } from './swagger';
 
 const app: express.Express = express();
@@ -38,6 +39,7 @@ app.use('/api/scripts', scriptTagRouter);
 app.use('/api/tags', tagRouter);
 app.use('/api/authoring-sessions', authoringRouter);
 app.use('/api/ai-status', aiStatusRouter);
+app.use('/api/work-log', workLogRouter);
 
 /**
  * @openapi
