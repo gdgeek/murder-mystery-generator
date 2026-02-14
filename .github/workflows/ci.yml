@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: ['*']
   pull_request:
     branches: [main]
 
@@ -29,9 +29,21 @@ jobs:
   docker:
     needs: test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.event_name == 'push'
     steps:
       - uses: actions/checkout@v4
+
+      - name: Prepare tags
+        id: tags
+        run: |
+          BRANCH=${GITHUB_REF##refs/heads/}
+          SHORT_SHA=${GITHUB_SHA::7}
+          REGISTRY=hkccr.ccs.tencentyun.com/murder/murder-mystery-generator
+          TAGS="${REGISTRY}:${BRANCH},${REGISTRY}:${SHORT_SHA}"
+          if [ "$BRANCH" = "main" ]; then
+            TAGS="${TAGS},${REGISTRY}:latest"
+          fi
+          echo "tags=${TAGS}" >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-buildx-action@v3
 
@@ -45,8 +57,6 @@ jobs:
         with:
           context: .
           push: true
-          tags: |
-            hkccr.ccs.tencentyun.com/murder/murder-mystery-generator:latest
-            hkccr.ccs.tencentyun.com/murder/murder-mystery-generator:${{ github.sha }}
+          tags: ${{ steps.tags.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
