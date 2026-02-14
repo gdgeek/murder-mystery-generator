@@ -46,7 +46,9 @@ export async function runMigrations(): Promise<void> {
       if (!sql) continue;
 
       console.log(`[migrator] Running ${file}...`);
+      await conn.query('SET FOREIGN_KEY_CHECKS = 0');
       await conn.query(sql);
+      await conn.query('SET FOREIGN_KEY_CHECKS = 1');
       await conn.query('INSERT INTO _migrations (name) VALUES (?)', [file]);
       count++;
       console.log(`[migrator] ✓ ${file}`);
