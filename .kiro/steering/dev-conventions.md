@@ -15,10 +15,12 @@ inclusion: auto
 
 - 完整系统需求：#[[file:design-kb/.kiro/specs/murder-mystery-ai-generator/requirements.md]]
 - 完整系统设计：#[[file:design-kb/.kiro/specs/murder-mystery-ai-generator/design.md]]
+- 本项目实现状态：#[[file:design-kb/.kiro/specs/murder-mystery-ai-generator/implementation-status.md]]
 - 微服务架构：#[[file:design-kb/.kiro/specs/microservice-architecture/architecture.md]]
 - 创建服务 API 契约：#[[file:design-kb/.kiro/specs/microservice-architecture/services/creation-service.md]]
 - 事件总线格式：#[[file:design-kb/.kiro/specs/microservice-architecture/event-bus.md]]
 - 通信协议与错误码：#[[file:design-kb/.kiro/specs/microservice-architecture/communication.md]]
+- 子项目开发指南：#[[file:design-kb/.kiro/specs/microservice-architecture/dev-guide.md]]
 
 ## 本项目 Spec
 
