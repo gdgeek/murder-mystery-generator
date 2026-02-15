@@ -11,16 +11,12 @@ inclusion: auto
 
 ## 权威设计文档（通过 submodule 同步）
 
-以下文档是类型定义和设计契约的权威来源，代码必须与之一致：
+知识库已大幅简化，采用 KISS 原则，从微服务架构改为三系统平台（剧本生成 + 物料生成 + 游戏玩家）。
+以下文档是设计契约的权威来源：
 
-- 完整系统需求：#[[file:design-kb/.kiro/specs/murder-mystery-ai-generator/requirements.md]]
-- 完整系统设计：#[[file:design-kb/.kiro/specs/murder-mystery-ai-generator/design.md]]
-- 本项目实现状态：#[[file:design-kb/.kiro/specs/murder-mystery-ai-generator/implementation-status.md]]
-- 微服务架构：#[[file:design-kb/.kiro/specs/microservice-architecture/architecture.md]]
-- 创建服务 API 契约：#[[file:design-kb/.kiro/specs/microservice-architecture/services/creation-service.md]]
-- 事件总线格式：#[[file:design-kb/.kiro/specs/microservice-architecture/event-bus.md]]
-- 通信协议与错误码：#[[file:design-kb/.kiro/specs/microservice-architecture/communication.md]]
-- 子项目开发指南：#[[file:design-kb/.kiro/specs/microservice-architecture/dev-guide.md]]
+- 三系统平台需求：#[[file:design-kb/.kiro/specs/murder-mystery-system/requirements.md]]
+- 三系统平台设计：#[[file:design-kb/.kiro/specs/murder-mystery-system/design.md]]
+- 三系统平台任务：#[[file:design-kb/.kiro/specs/murder-mystery-system/tasks.md]]
 
 ## 本项目 Spec
 
@@ -39,7 +35,7 @@ inclusion: auto
 - 反馈驱动优化（与生成相关的部分）
 - i18n（与生成相关的部分）
 
-不包含：线上游玩、WebSocket、AI DM、知识库子系统、账户系统、成就收藏、排行榜、插件系统、视频生成、设计师系统、经济系统等。
+不包含：物料生成系统（murder-mystery-material）、游戏玩家系统（murder-mystery-game）。这两个系统在独立仓库中开发。
 
 ## 关键约束
 
