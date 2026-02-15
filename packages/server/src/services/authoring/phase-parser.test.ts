@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { PhaseParser } from './phase-parser';
-import type { ChapterType } from '@murder-mystery/shared';
+import type { ChapterType } from '@gdgeek/murder-mystery-shared';
 
 // ─── test fixtures ───
 

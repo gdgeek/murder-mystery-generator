@@ -13,7 +13,7 @@ import {
   AggregateRouterError,
   ProviderAttempt,
   SupportedLanguage,
-} from '@murder-mystery/shared';
+} from '@gdgeek/murder-mystery-shared';
 import { ILLMAdapter } from './llm-adapter.interface';
 import { LLMAdapter } from './llm-adapter';
 import { getLanguageDirective } from './language-directives';

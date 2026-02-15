@@ -3,7 +3,7 @@
  * Requirements: 9.1, 9.2
  */
 
-import { LLMRequest, LLMResponse } from '@murder-mystery/shared';
+import { LLMRequest, LLMResponse } from '@gdgeek/murder-mystery-shared';
 
 export interface ILLMAdapter {
   send(request: LLMRequest): Promise<LLMResponse>;

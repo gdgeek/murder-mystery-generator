@@ -9,7 +9,7 @@
 import { Router, Request, Response } from 'express';
 import { TagService } from '../services/tag.service';
 import { pool } from '../db/mysql';
-import { TagCategory } from '@murder-mystery/shared';
+import { TagCategory } from '@gdgeek/murder-mystery-shared';
 
 const router: Router = Router();
 const tagService = new TagService();

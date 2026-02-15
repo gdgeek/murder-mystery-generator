@@ -23,7 +23,7 @@ importers:
 
   packages/server:
     dependencies:
-      '@murder-mystery/shared':
+      '@gdgeek/murder-mystery-shared':
         specifier: workspace:*
         version: link:../shared
       express:
@@ -96,7 +96,7 @@ importers:
 
   packages/web:
     dependencies:
-      '@murder-mystery/shared':
+      '@gdgeek/murder-mystery-shared':
         specifier: workspace:*
         version: link:../shared
     devDependencies:

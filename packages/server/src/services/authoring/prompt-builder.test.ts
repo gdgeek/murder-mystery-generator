@@ -8,8 +8,8 @@ import type {
   Chapter,
   ChapterType,
   LLMRequest,
-} from '@murder-mystery/shared';
-import { GameType, AgeGroup, SkillCategory } from '@murder-mystery/shared';
+} from '@gdgeek/murder-mystery-shared';
+import { GameType, AgeGroup, SkillCategory } from '@gdgeek/murder-mystery-shared';
 
 // ─── test fixtures ───
 

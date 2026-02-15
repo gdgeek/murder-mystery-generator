@@ -9,8 +9,8 @@ import {
   AgeGroup,
   SettingType,
   ScriptStyle,
-} from '@murder-mystery/shared';
-import type { CreateConfigInput, SpecialSetting } from '@murder-mystery/shared';
+} from '@gdgeek/murder-mystery-shared';
+import type { CreateConfigInput, SpecialSetting } from '@gdgeek/murder-mystery-shared';
 
 export interface FieldError {
   field: string;

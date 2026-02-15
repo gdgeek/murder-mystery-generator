@@ -1,4 +1,4 @@
-import { SupportedLanguage } from '@murder-mystery/shared';
+import { SupportedLanguage } from '@gdgeek/murder-mystery-shared';
 
 /** 语言指令映射表 */
 export const LANGUAGE_DIRECTIVES: Record<SupportedLanguage, string> = {

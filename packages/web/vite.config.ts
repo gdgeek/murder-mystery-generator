@@ -5,7 +5,7 @@ export default defineConfig({
   root: '.',
   resolve: {
     alias: {
-      '@murder-mystery/shared': path.resolve(__dirname, '../shared/src'),
+      '@gdgeek/murder-mystery-shared': path.resolve(__dirname, '../shared/src'),
     },
   },
   server: {

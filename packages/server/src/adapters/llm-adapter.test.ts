@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { LLMAdapter } from './llm-adapter';
-import { LLMError } from '@murder-mystery/shared';
+import { LLMError } from '@gdgeek/murder-mystery-shared';
 
 /** Testable subclass that overrides doFetch and sleep */
 class TestLLMAdapter extends LLMAdapter {

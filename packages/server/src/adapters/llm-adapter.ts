@@ -8,7 +8,7 @@ import {
   LLMResponse,
   LLMError,
   LLM_RETRY_CONFIG,
-} from '@murder-mystery/shared';
+} from '@gdgeek/murder-mystery-shared';
 import { ILLMAdapter } from './llm-adapter.interface';
 
 const RETRYABLE_STATUS_CODES = new Set([429, 500, 502, 503, 504]);

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { validateConfigForm, validateSpecialSetting } from './validators';
-import { GameType, AgeGroup, SettingType, ScriptStyle } from '@murder-mystery/shared';
-import type { CreateConfigInput, SpecialSetting } from '@murder-mystery/shared';
+import { GameType, AgeGroup, SettingType, ScriptStyle } from '@gdgeek/murder-mystery-shared';
+import type { CreateConfigInput, SpecialSetting } from '@gdgeek/murder-mystery-shared';
 
 /** Helper: returns a fully valid config input */
 function validInput(): Partial<CreateConfigInput> {

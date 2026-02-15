@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { TagService } from './tag.service';
-import { GameType, AgeGroup, TagCategory, ScriptConfig } from '@murder-mystery/shared';
+import { GameType, AgeGroup, TagCategory, ScriptConfig } from '@gdgeek/murder-mystery-shared';
 
 const service = new TagService();
 

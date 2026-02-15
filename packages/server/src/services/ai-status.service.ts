@@ -4,7 +4,7 @@
  * Requirements: 1.1, 1.2, 1.3, 5.1, 5.2, 5.3, 5.4
  */
 
-import type { AiStatusResult, AiVerifyResult, EphemeralAiConfig } from '@murder-mystery/shared';
+import type { AiStatusResult, AiVerifyResult, EphemeralAiConfig } from '@gdgeek/murder-mystery-shared';
 import { ConfigLoader } from '../adapters/config-loader';
 import { LLMAdapter } from '../adapters/llm-adapter';
 

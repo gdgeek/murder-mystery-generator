@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { ConfigService } from './config.service';
-import { GameType, AgeGroup } from '@murder-mystery/shared';
+import { GameType, AgeGroup } from '@gdgeek/murder-mystery-shared';
 
 const service = new ConfigService();
 

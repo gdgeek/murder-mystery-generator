@@ -15,7 +15,7 @@
     "resolveJsonModule": true,
     "moduleResolution": "node",
     "paths": {
-      "@murder-mystery/shared": ["../shared/src"]
+      "@gdgeek/murder-mystery-shared": ["../shared/src"]
     }
   },
   "include": ["src/**/*"],

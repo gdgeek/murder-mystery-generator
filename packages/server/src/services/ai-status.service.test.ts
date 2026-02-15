@@ -7,7 +7,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { AiStatusService } from './ai-status.service';
 import { ConfigLoader } from '../adapters/config-loader';
 import { LLMAdapter } from '../adapters/llm-adapter';
-import type { RoutingConfig } from '@murder-mystery/shared';
+import type { RoutingConfig } from '@gdgeek/murder-mystery-shared';
 
 vi.mock('../adapters/config-loader');
 vi.mock('../adapters/llm-adapter');

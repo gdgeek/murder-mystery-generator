@@ -14,7 +14,7 @@ import {
   BranchStructure,
   AggregatedFeedback,
   LLMResponse,
-} from '@murder-mystery/shared';
+} from '@gdgeek/murder-mystery-shared';
 import { ILLMAdapter } from '../adapters/llm-adapter.interface';
 
 // ─── Helpers ───

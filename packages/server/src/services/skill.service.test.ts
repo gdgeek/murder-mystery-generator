@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { SkillService } from './skill.service';
-import { GameType, SkillCategory } from '@murder-mystery/shared';
+import { GameType, SkillCategory } from '@gdgeek/murder-mystery-shared';
 
 const service = new SkillService();
 

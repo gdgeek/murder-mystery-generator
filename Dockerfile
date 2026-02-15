@@ -20,7 +20,7 @@ COPY packages/shared/ packages/shared/
 COPY packages/server/ packages/server/
 
 # Build shared first, then server
-RUN pnpm --filter @murder-mystery/shared build
+RUN pnpm --filter @gdgeek/murder-mystery-shared build
 RUN pnpm --filter @murder-mystery/server build
 
 # ── Production stage ──

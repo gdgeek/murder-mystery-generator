@@ -7,7 +7,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createLLMAdapter } from './create-llm-adapter';
 import { LLMRouter } from './llm-router';
 import { ConfigLoader } from './config-loader';
-import type { RoutingConfig } from '@murder-mystery/shared';
+import type { RoutingConfig } from '@gdgeek/murder-mystery-shared';
 
 vi.mock('./config-loader');
 vi.mock('./llm-router');

@@ -5,7 +5,7 @@
  * Requirements: 2.1, 2.2, 2.3, 2.4
  */
 
-import type { SessionState, AuthoringMode } from '@murder-mystery/shared';
+import type { SessionState, AuthoringMode } from '@gdgeek/murder-mystery-shared';
 
 // ─── 转换结果 ───
 

@@ -24,7 +24,7 @@ import { LLMAdapter } from '../../adapters/llm-adapter';
 import { SkillService } from '../skill.service';
 import { GeneratorService } from '../generator.service';
 import { ConfigService } from '../config.service';
-import type { EphemeralAiConfig } from '@murder-mystery/shared';
+import type { EphemeralAiConfig } from '@gdgeek/murder-mystery-shared';
 
 const mockPool = pool as unknown as { execute: ReturnType<typeof vi.fn> };
 

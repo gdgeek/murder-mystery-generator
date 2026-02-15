@@ -4,7 +4,7 @@
  * Requirements: 4.1, 4.3
  */
 
-import type { RoundStructure, RoundPhase } from '@murder-mystery/shared';
+import type { RoundStructure, RoundPhase } from '@gdgeek/murder-mystery-shared';
 
 /** 时长到轮次数映射 */
 const DURATION_TO_ROUNDS: Record<number, number> = {

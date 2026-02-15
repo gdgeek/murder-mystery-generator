@@ -11,7 +11,7 @@ import { AiConfigForm } from '../components/ai-config-form';
 import { GenerationTracker } from '../components/generation-tracker';
 import { showToast } from '../components/toast';
 import type { ApiClient } from '../api-client';
-import type { AiStatusResult, AiVerifyResult, EphemeralAiConfig } from '@murder-mystery/shared';
+import type { AiStatusResult, AiVerifyResult, EphemeralAiConfig } from '@gdgeek/murder-mystery-shared';
 
 export function renderConfig(container: HTMLElement, apiClient: ApiClient): void {
   container.innerHTML = '';

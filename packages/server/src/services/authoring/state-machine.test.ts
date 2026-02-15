@@ -5,7 +5,7 @@ import {
   VIBE_TRANSITIONS,
   type StateTransitionResult,
 } from './state-machine';
-import type { SessionState, AuthoringMode } from '@murder-mystery/shared';
+import type { SessionState, AuthoringMode } from '@gdgeek/murder-mystery-shared';
 
 // ─── helpers ───
 

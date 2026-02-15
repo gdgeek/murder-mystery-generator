@@ -3,8 +3,8 @@
  * Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 3.1, 3.2, 3.3, 3.4
  */
 
-import { GameType, AgeGroup, SettingType, ScriptStyle } from '@murder-mystery/shared';
-import type { CreateConfigInput } from '@murder-mystery/shared';
+import { GameType, AgeGroup, SettingType, ScriptStyle } from '@gdgeek/murder-mystery-shared';
+import type { CreateConfigInput } from '@gdgeek/murder-mystery-shared';
 import { validateConfigForm } from '../validators';
 import type { ApiClient } from '../api-client';
 import { RoundPreview } from './round-preview';

@@ -8,7 +8,7 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { validateEphemeralAiConfig } from '@murder-mystery/shared';
+import { validateEphemeralAiConfig } from '@gdgeek/murder-mystery-shared';
 import { AiStatusService } from '../services/ai-status.service';
 
 const router: Router = Router();

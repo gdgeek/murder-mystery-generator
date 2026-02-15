@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { ConfigLoader } from './config-loader';
-import { RoutingConfig } from '@murder-mystery/shared';
+import { RoutingConfig } from '@gdgeek/murder-mystery-shared';
 
 const TEST_DIR = join(__dirname, '__test_config__');
 const TEST_CONFIG_PATH = join(TEST_DIR, 'test-config.json');

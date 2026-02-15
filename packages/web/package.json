@@ -12,7 +12,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@murder-mystery/shared": "workspace:*"
+    "@gdgeek/murder-mystery-shared": "workspace:*"
   },
   "devDependencies": {
     "fast-check": "^3.19.0",

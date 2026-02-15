@@ -12,7 +12,7 @@ import {
   ScriptConfig,
   GameType,
   AgeGroup,
-} from '@murder-mystery/shared';
+} from '@gdgeek/murder-mystery-shared';
 import { pool } from '../db/mysql';
 import { redis } from '../db/redis';
 

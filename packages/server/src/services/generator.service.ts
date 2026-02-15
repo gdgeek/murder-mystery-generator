@@ -20,7 +20,7 @@ import {
   ClueDistributionEntry,
   AggregatedFeedback,
   LLMError,
-} from '@murder-mystery/shared';
+} from '@gdgeek/murder-mystery-shared';
 import { ILLMAdapter } from '../adapters/llm-adapter.interface';
 import { SkillService } from './skill.service';
 import { pool } from '../db/mysql';

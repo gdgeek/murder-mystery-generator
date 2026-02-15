@@ -9,13 +9,13 @@
 - [x] 1. 项目基础设施搭建
   - [x] 1.1 初始化 Monorepo 结构和共享类型包
     - 创建 packages/shared/src/types/ 目录，定义 config.ts、script.ts、tag.ts、feedback.ts 类型
-    - 配置 tsconfig.json 和 package.json（@murder-mystery/shared）
+    - 配置 tsconfig.json 和 package.json（@gdgeek/murder-mystery-shared）
     - 创建 packages/shared/src/index.ts 统一导出
     - _Requirements: 1.1, 2.1, 4.1, 5.1_
 
   - [x] 1.2 初始化后端服务包
     - 创建 packages/server/ 目录结构（src/services/、src/adapters/、src/routes/、src/db/、src/skills/、src/config/）
-    - 配置 package.json（依赖 @murder-mystery/shared、express、mysql2、ioredis、uuid）
+    - 配置 package.json（依赖 @gdgeek/murder-mystery-shared、express、mysql2、ioredis、uuid）
     - 配置 tsconfig.json、vitest.config.ts
     - 配置 vitest 和 fast-check 测试依赖
     - _Requirements: 9.1, 9.2_

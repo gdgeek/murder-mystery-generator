@@ -5,7 +5,7 @@
 
 import { ApiClient, ApiError } from '../api-client';
 import { showToast } from './toast';
-import type { EphemeralAiConfig } from '@murder-mystery/shared';
+import type { EphemeralAiConfig } from '@gdgeek/murder-mystery-shared';
 
 /** 生成任务状态响应 */
 export interface GenerateJobResponse {

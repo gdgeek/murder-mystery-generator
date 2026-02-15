@@ -13,7 +13,7 @@ import {
   ScriptOutline,
   ChapterType,
   Chapter,
-} from '@murder-mystery/shared';
+} from '@gdgeek/murder-mystery-shared';
 
 /** 每种风格对应的叙事指导描述 */
 const STYLE_DIRECTIVES: Record<ScriptStyle, string> = {

@@ -7,7 +7,7 @@
 ## Tasks
 
 - [x] 1. 初始化 packages/web 项目结构
-  - 创建 `packages/web/package.json`（依赖 `@murder-mystery/shared`、`vite`、`typescript`、`vitest`、`fast-check`）
+  - 创建 `packages/web/package.json`（依赖 `@gdgeek/murder-mystery-shared`、`vite`、`typescript`、`vitest`、`fast-check`）
   - 创建 `packages/web/tsconfig.json`
   - 创建 `packages/web/vite.config.ts`（配置 dev server proxy 到后端）
   - 创建 `packages/web/index.html`（引入 Bootstrap 5 CDN CSS/JS，包含 `<div id="app">` 容器和 navbar）
@@ -149,4 +149,4 @@
 - 纯逻辑模块（validators、round-calculator）优先实现并测试，确保核心逻辑正确
 - 属性测试使用 fast-check 库，每个属性至少 100 次迭代
 - 单元测试使用 Vitest + jsdom 环境
-- 前端直接引用 `@murder-mystery/shared` 中的类型定义
+- 前端直接引用 `@gdgeek/murder-mystery-shared` 中的类型定义

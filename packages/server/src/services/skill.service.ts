@@ -3,7 +3,7 @@
  * Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7
  */
 
-import { GameType, SkillCategory, SkillTemplate } from '@murder-mystery/shared';
+import { GameType, SkillCategory, SkillTemplate } from '@gdgeek/murder-mystery-shared';
 
 import commonSkills from '../skills/common.json';
 import honkakuSkills from '../skills/honkaku.json';

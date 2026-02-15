@@ -5,7 +5,7 @@
  * Requirements: 3.2, 4.2
  */
 
-import type { ScriptPlan, ScriptOutline, Chapter, ChapterType } from '@murder-mystery/shared';
+import type { ScriptPlan, ScriptOutline, Chapter, ChapterType } from '@gdgeek/murder-mystery-shared';
 
 export interface IPhaseParser {
   parsePlan(content: string): ScriptPlan;

@@ -11,7 +11,7 @@ import {
   TaskRoute,
   ValidationError,
   SupportedLanguage,
-} from '@murder-mystery/shared';
+} from '@gdgeek/murder-mystery-shared';
 
 const DEFAULT_CONFIG_PATH = 'config/llm-routing.json';
 const SUPPORTED_LANGUAGES: SupportedLanguage[] = ['en-US', 'zh-CN'];

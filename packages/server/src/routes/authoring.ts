@@ -25,9 +25,9 @@ import { ConfigService } from '../services/config.service';
 import { SkillService } from '../services/skill.service';
 import { GeneratorService } from '../services/generator.service';
 import { createLLMAdapter } from '../adapters/create-llm-adapter';
-import { validateEphemeralAiConfig } from '@murder-mystery/shared';
+import { validateEphemeralAiConfig } from '@gdgeek/murder-mystery-shared';
 import { AiStatusService } from '../services/ai-status.service';
-import type { AuthoringMode, PhaseName } from '@murder-mystery/shared';
+import type { AuthoringMode, PhaseName } from '@gdgeek/murder-mystery-shared';
 
 const router: Router = Router();
 const llmAdapter = createLLMAdapter();

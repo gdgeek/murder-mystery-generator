@@ -5,7 +5,7 @@ import {
   RoutingConfig,
   TaskRoute,
   AggregateRouterError,
-} from '@murder-mystery/shared';
+} from '@gdgeek/murder-mystery-shared';
 import { LLMRouter } from './llm-router';
 import { ILLMAdapter } from './llm-adapter.interface';
 

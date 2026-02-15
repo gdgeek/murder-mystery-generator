@@ -4,8 +4,8 @@
  * Requirements: 2.1, 2.2, 2.3, 2.5, 2.6
  */
 
-import { PROVIDER_DEFAULTS, validateEphemeralAiConfig } from '@murder-mystery/shared';
-import type { EphemeralAiConfig } from '@murder-mystery/shared';
+import { PROVIDER_DEFAULTS, validateEphemeralAiConfig } from '@gdgeek/murder-mystery-shared';
+import type { EphemeralAiConfig } from '@gdgeek/murder-mystery-shared';
 import type { ApiClient } from '../api-client';
 
 export interface AiConfigFormOptions {

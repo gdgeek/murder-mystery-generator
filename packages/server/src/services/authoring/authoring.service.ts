@@ -17,7 +17,7 @@ import {
   FailureInfo,
   ScriptStatus,
   AiStepMeta,
-} from '@murder-mystery/shared';
+} from '@gdgeek/murder-mystery-shared';
 import type {
   Script,
   DMHandbook,
@@ -26,8 +26,8 @@ import type {
   BranchStructure,
   ScriptConfig,
   LLMResponse,
-} from '@murder-mystery/shared';
-import type { EphemeralAiConfig } from '@murder-mystery/shared';
+} from '@gdgeek/murder-mystery-shared';
+import type { EphemeralAiConfig } from '@gdgeek/murder-mystery-shared';
 import { ILLMAdapter } from '../../adapters/llm-adapter.interface';
 import { LLMAdapter } from '../../adapters/llm-adapter';
 import { SkillService } from '../skill.service';
@@ -36,7 +36,7 @@ import { ConfigService } from '../config.service';
 import { transition } from './state-machine';
 import { PromptBuilder } from './prompt-builder';
 import { PhaseParser } from './phase-parser';
-import { SkillCategory } from '@murder-mystery/shared';
+import { SkillCategory } from '@gdgeek/murder-mystery-shared';
 import { pool } from '../../db/mysql';
 
 /** States in which the session's AI config may be updated */
@@ -243,7 +243,7 @@ export class AuthoringService {
    */
   private async advanceVibe(
     session: AuthoringSession,
-    config: import('@murder-mystery/shared').ScriptConfig,
+    config: import('@gdgeek/murder-mystery-shared').ScriptConfig,
   ): Promise<AuthoringSession> {
     if (session.state !== 'draft') {
       throw new Error(`Cannot advance vibe session from state '${session.state}'`);
@@ -286,7 +286,7 @@ export class AuthoringService {
    */
   private async advanceStaged(
     session: AuthoringSession,
-    config: import('@murder-mystery/shared').ScriptConfig,
+    config: import('@gdgeek/murder-mystery-shared').ScriptConfig,
   ): Promise<AuthoringSession> {
     const promptBuilder = new PromptBuilder();
     const phaseParser = new PhaseParser();
@@ -307,7 +307,7 @@ export class AuthoringService {
    */
   private async advancePlanning(
     session: AuthoringSession,
-    config: import('@murder-mystery/shared').ScriptConfig,
+    config: import('@gdgeek/murder-mystery-shared').ScriptConfig,
     promptBuilder: PromptBuilder,
     phaseParser: PhaseParser,
   ): Promise<AuthoringSession> {
@@ -369,7 +369,7 @@ export class AuthoringService {
    */
   private async advanceExecuting(
     session: AuthoringSession,
-    config: import('@murder-mystery/shared').ScriptConfig,
+    config: import('@gdgeek/murder-mystery-shared').ScriptConfig,
     promptBuilder: PromptBuilder,
     phaseParser: PhaseParser,
   ): Promise<AuthoringSession> {
@@ -390,11 +390,11 @@ export class AuthoringService {
 
       const request = promptBuilder.buildChapterPrompt(
         config,
-        approvedOutline as import('@murder-mystery/shared').ScriptOutline,
+        approvedOutline as import('@gdgeek/murder-mystery-shared').ScriptOutline,
         chapterType,
         chapterIndex,
         previousChapters,
-        (session.planOutput?.authorEdited ?? session.planOutput?.llmOriginal) as import('@murder-mystery/shared').ScriptPlan | undefined,
+        (session.planOutput?.authorEdited ?? session.planOutput?.llmOriginal) as import('@gdgeek/murder-mystery-shared').ScriptPlan | undefined,
       );
       const adapter = this.getAdapterForSession(session.id);
       const response = await adapter.send(request);
@@ -565,7 +565,7 @@ export class AuthoringService {
    */
   private async approvePlan(
     session: AuthoringSession,
-    config: import('@murder-mystery/shared').ScriptConfig,
+    config: import('@gdgeek/murder-mystery-shared').ScriptConfig,
     notes?: string,
   ): Promise<AuthoringSession> {
     session.planOutput!.approved = true;
@@ -587,7 +587,7 @@ export class AuthoringService {
         config.gameType,
         AuthoringService.ALL_CATEGORIES,
       );
-      const approvedPlan = (session.planOutput!.authorEdited ?? session.planOutput!.llmOriginal) as import('@murder-mystery/shared').ScriptPlan;
+      const approvedPlan = (session.planOutput!.authorEdited ?? session.planOutput!.llmOriginal) as import('@gdgeek/murder-mystery-shared').ScriptPlan;
       const request = promptBuilder.buildDesignPrompt(config, approvedPlan, skills, session.planOutput!.authorNotes);
       const adapter = this.getAdapterForSession(session.id);
       const response = await adapter.send(request);
@@ -637,7 +637,7 @@ export class AuthoringService {
    */
   private async approveOutline(
     session: AuthoringSession,
-    config: import('@murder-mystery/shared').ScriptConfig,
+    config: import('@gdgeek/murder-mystery-shared').ScriptConfig,
     notes?: string,
   ): Promise<AuthoringSession> {
     session.outlineOutput!.approved = true;
@@ -673,7 +673,7 @@ export class AuthoringService {
    */
   private async approveChapter(
     session: AuthoringSession,
-    config: import('@murder-mystery/shared').ScriptConfig,
+    config: import('@gdgeek/murder-mystery-shared').ScriptConfig,
   ): Promise<AuthoringSession> {
     const batch = session.parallelBatch;
 
@@ -736,7 +736,7 @@ export class AuthoringService {
    */
   private async generateParallelBatch(
     session: AuthoringSession,
-    config: import('@murder-mystery/shared').ScriptConfig,
+    config: import('@gdgeek/murder-mystery-shared').ScriptConfig,
     chapterIndices: number[],
   ): Promise<AuthoringSession> {
     // chapter_review → executing
@@ -756,8 +756,8 @@ export class AuthoringService {
 
     const promptBuilder = new PromptBuilder();
     const phaseParser = new PhaseParser();
-    const approvedOutline = (session.outlineOutput?.authorEdited ?? session.outlineOutput?.llmOriginal) as import('@murder-mystery/shared').ScriptOutline;
-    const approvedPlan = (session.planOutput?.authorEdited ?? session.planOutput?.llmOriginal) as import('@murder-mystery/shared').ScriptPlan | undefined;
+    const approvedOutline = (session.outlineOutput?.authorEdited ?? session.outlineOutput?.llmOriginal) as import('@gdgeek/murder-mystery-shared').ScriptOutline;
+    const approvedPlan = (session.planOutput?.authorEdited ?? session.planOutput?.llmOriginal) as import('@gdgeek/murder-mystery-shared').ScriptPlan | undefined;
 
     // All chapters in this batch share the same previousChapters (everything before the batch)
     const minBatchIndex = Math.min(...chapterIndices);
@@ -859,14 +859,14 @@ export class AuthoringService {
    */
   private async generateCurrentChapter(
     session: AuthoringSession,
-    config: import('@murder-mystery/shared').ScriptConfig,
+    config: import('@gdgeek/murder-mystery-shared').ScriptConfig,
     promptBuilder: PromptBuilder,
     phaseParser: PhaseParser,
   ): Promise<AuthoringSession> {
     const chapterIndex = session.currentChapterIndex;
     const chapterType = this.getChapterType(chapterIndex, config.playerCount);
-    const approvedOutline = (session.outlineOutput?.authorEdited ?? session.outlineOutput?.llmOriginal) as import('@murder-mystery/shared').ScriptOutline;
-    const approvedPlan = (session.planOutput?.authorEdited ?? session.planOutput?.llmOriginal) as import('@murder-mystery/shared').ScriptPlan | undefined;
+    const approvedOutline = (session.outlineOutput?.authorEdited ?? session.outlineOutput?.llmOriginal) as import('@gdgeek/murder-mystery-shared').ScriptOutline;
+    const approvedPlan = (session.planOutput?.authorEdited ?? session.planOutput?.llmOriginal) as import('@gdgeek/murder-mystery-shared').ScriptPlan | undefined;
 
     try {
       const previousChapters = session.chapters.filter(ch => ch.index < chapterIndex);
@@ -955,7 +955,7 @@ export class AuthoringService {
       // Save current chapter content to chapterEdits as history
       const currentChapter = session.chapters.find(ch => ch.index === chapterIndex);
       if (currentChapter) {
-        const edit: import('@murder-mystery/shared').AuthorEdit = {
+        const edit: import('@gdgeek/murder-mystery-shared').AuthorEdit = {
           editedAt: new Date(),
           originalContent: currentChapter.content,
           editedContent: currentChapter.content,
@@ -1090,8 +1090,8 @@ export class AuthoringService {
 
       const promptBuilder = new PromptBuilder();
       const phaseParser = new PhaseParser();
-      const approvedOutline = (session.outlineOutput?.authorEdited ?? session.outlineOutput?.llmOriginal) as import('@murder-mystery/shared').ScriptOutline;
-      const approvedPlan = (session.planOutput?.authorEdited ?? session.planOutput?.llmOriginal) as import('@murder-mystery/shared').ScriptPlan | undefined;
+      const approvedOutline = (session.outlineOutput?.authorEdited ?? session.outlineOutput?.llmOriginal) as import('@gdgeek/murder-mystery-shared').ScriptOutline;
+      const approvedPlan = (session.planOutput?.authorEdited ?? session.planOutput?.llmOriginal) as import('@gdgeek/murder-mystery-shared').ScriptPlan | undefined;
 
       // Use chapters before the batch as context (same as generateParallelBatch)
       const minBatchIndex = Math.min(...failedIndices);
@@ -1242,7 +1242,7 @@ export class AuthoringService {
     const adapter = this.getAdapterForSession(sessionId);
 
     // Generate title: prefer LLM-generated title from plan, fallback to config theme
-    const plan = (session.planOutput?.authorEdited ?? session.planOutput?.llmOriginal) as import('@murder-mystery/shared').ScriptPlan | undefined;
+    const plan = (session.planOutput?.authorEdited ?? session.planOutput?.llmOriginal) as import('@gdgeek/murder-mystery-shared').ScriptPlan | undefined;
     let title = `${config.theme} - ${config.era}`;
     if (plan?.title && plan.title.length > 2) {
       title = plan.title;
@@ -1399,11 +1399,11 @@ export class AuthoringService {
       chapterEdits: parseDateFields(chapterEdits) as Record<number, AuthorEdit[]>,
       currentChapterIndex: row.current_chapter_index as number,
       totalChapters: row.total_chapters as number,
-      parallelBatch: parallelBatch as import('@murder-mystery/shared').ParallelBatch | undefined,
+      parallelBatch: parallelBatch as import('@gdgeek/murder-mystery-shared').ParallelBatch | undefined,
       scriptId: row.script_id as string | undefined,
-      aiConfigMeta: aiConfigMeta as import('@murder-mystery/shared').AiConfigMeta | undefined,
+      aiConfigMeta: aiConfigMeta as import('@gdgeek/murder-mystery-shared').AiConfigMeta | undefined,
       failureInfo: parseDateFields(failureInfo) as FailureInfo | undefined,
-      lastStepTokens: lastStepTokens as import('@murder-mystery/shared').TokenUsage | undefined,
+      lastStepTokens: lastStepTokens as import('@gdgeek/murder-mystery-shared').TokenUsage | undefined,
       createdAt: new Date(row.created_at as string | Date),
       updatedAt: new Date(row.updated_at as string | Date),
     };

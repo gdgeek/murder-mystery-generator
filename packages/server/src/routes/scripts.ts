@@ -13,7 +13,7 @@ import { ConfigService } from '../services/config.service';
 import { SkillService } from '../services/skill.service';
 import { createLLMAdapter } from '../adapters/create-llm-adapter';
 import { AuthoringService } from '../services/authoring/authoring.service';
-import { Script, AiStepMeta } from '@murder-mystery/shared';
+import { Script, AiStepMeta } from '@gdgeek/murder-mystery-shared';
 
 const router: Router = Router();
 const configService = new ConfigService();

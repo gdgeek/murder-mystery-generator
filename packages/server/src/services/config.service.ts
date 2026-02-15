@@ -15,7 +15,7 @@ import {
   CreateConfigInput,
   ValidationResult,
   ValidationError,
-} from '@murder-mystery/shared';
+} from '@gdgeek/murder-mystery-shared';
 import { pool } from '../db/mysql';
 
 /** Round mapping: durationHours → { totalRounds, summaryMinutes } */
