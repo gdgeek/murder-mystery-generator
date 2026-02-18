@@ -20,6 +20,7 @@ import {
   ClueDistributionEntry,
   AggregatedFeedback,
   LLMError,
+  PlayableStructure,
 } from '@gdgeek/murder-mystery-shared';
 import { ILLMAdapter } from '../adapters/llm-adapter.interface';
 import { SkillService } from './skill.service';
@@ -128,6 +129,18 @@ export class GeneratorService {
     const parsed = this.parseGeneratedContent(response.content);
     this.validateGenerated(parsed, config);
 
+    // 4b. Parse and validate playable structure (if present)
+    let playableStructure: PlayableStructure | undefined;
+    const rawParsed = parsed as Record<string, unknown>;
+    if (rawParsed.playableStructure) {
+      try {
+        playableStructure = this.parsePlayableContent(rawParsed.playableStructure);
+        this.validatePlayableStructure(playableStructure, config, parsed.materials);
+      } catch (e) {
+        console.warn(`[generate] PlayableStructure parsing/validation warning: ${(e as Error).message}`);
+      }
+    }
+
     // 5. Build script object
     const script: Script = {
       id: uuidv4(),
@@ -139,6 +152,7 @@ export class GeneratorService {
       playerHandbooks: parsed.playerHandbooks,
       materials: parsed.materials,
       branchStructure: parsed.branchStructure,
+      playableStructure,
       tags: [],
       status: ScriptStatus.READY,
       aiProvider: this.llmAdapter.getProviderName(),
@@ -181,7 +195,40 @@ ${specialSettingInstruction}
   "dmHandbook": { "overview": "", "characters": [], "timeline": [], "clueDistribution": [], "roundGuides": [], "branchDecisionPoints": [], "endings": [], "truthReveal": "", "judgingRules": { "winConditions": "", "scoringCriteria": "" } },
   "playerHandbooks": [ { "characterId": "", "characterName": "", "backgroundStory": "", "primaryGoal": "", "secondaryGoals": [], "relationships": [], "knownClues": [], "roundActions": [], "secrets": [] } ],
   "materials": [ { "id": "", "type": "clue_card|prop_card|vote_card|scene_card", "content": "", "clueId": "", "associatedCharacterId": "", "metadata": {} } ],
-  "branchStructure": { "nodes": [], "edges": [], "endings": [] }
+  "branchStructure": { "nodes": [], "edges": [], "endings": [] },
+  "playableStructure": {
+    "prologue": {
+      "backgroundNarrative": "故事背景叙述",
+      "worldSetting": "世界观描述",
+      "characterIntros": [{ "characterId": "", "characterName": "", "publicDescription": "" }]
+    },
+    "acts": [{
+      "actIndex": 1,
+      "title": "幕标题",
+      "narrative": "全局故事叙述（DM朗读）",
+      "objectives": ["搜证目标"],
+      "clueIds": ["本幕分发的线索ID"],
+      "discussion": { "topics": ["讨论话题"], "guidingQuestions": ["引导问题"], "suggestedMinutes": 10 },
+      "vote": { "question": "投票问题", "options": [{ "id": "", "text": "", "impact": "" }] }
+    }],
+    "finale": {
+      "finalVote": { "question": "", "options": [{ "id": "", "text": "", "impact": "" }] },
+      "truthReveal": "真相揭示文本",
+      "endings": [{ "endingId": "", "name": "", "triggerCondition": "", "narrative": "", "playerEndingSummaries": [{ "characterId": "", "ending": "" }] }]
+    },
+    "dmHandbook": {
+      "prologueGuide": { "openingScript": "", "characterAssignmentNotes": "", "rulesIntroduction": "" },
+      "actGuides": [{ "actIndex": 1, "readAloudText": "", "keyEventHints": [], "clueDistributionInstructions": [{ "clueId": "", "targetCharacterId": "", "condition": "" }], "discussionGuidance": "", "voteHostingNotes": "", "dmPrivateNotes": "" }],
+      "finaleGuide": { "finalVoteHostingFlow": "", "truthRevealScript": "", "endingJudgmentNotes": "" }
+    },
+    "playerHandbooks": [{
+      "characterId": "",
+      "characterName": "",
+      "prologueContent": { "characterId": "", "backgroundStory": "", "relationships": [], "initialKnowledge": [] },
+      "actContents": [{ "actIndex": 1, "characterId": "", "personalNarrative": "", "objectives": [], "clueHints": [], "discussionSuggestions": [], "secretInfo": "" }],
+      "finaleContent": { "characterId": "", "closingStatementGuide": "", "votingSuggestion": "" }
+    }]
+  }
 }`;
   }
 
@@ -223,7 +270,13 @@ ${specialSettingInstruction}
 1. 玩家手册数量 = ${config.playerCount}
 2. 每张线索卡的clueId在DM手册线索分发表中都有对应条目
 3. 分支结构从起始节点出发，任意路径都能到达至少一个结局
-4. 每个玩家手册只包含该角色应知的信息`;
+4. 每个玩家手册只包含该角色应知的信息
+5. playableStructure中的中间幕（acts）数量 = ${config.roundStructure.totalRounds}
+6. 每幕包含完整的游玩序列：故事叙述→搜证目标→交流建议→投票/决策
+7. 幕与幕之间的故事叙述保持连贯性和递进性，情节层层推进
+8. 每幕的线索分发指令（clueDistributionInstructions）中的clueId与该幕的clueIds一致
+9. playableStructure.playerHandbooks中每个角色的actContents数量 = ${config.roundStructure.totalRounds}
+10. 序幕（prologue）包含完整的背景叙述和角色介绍，终幕（finale）包含最终投票和真相揭示`;
   }
 
   /** Parse LLM response JSON */
@@ -260,6 +313,31 @@ ${specialSettingInstruction}
       }
     }
 
+  /** Parse and validate playable structure from LLM response.
+   * Requirements: 4.4
+   */
+  parsePlayableContent(raw: unknown): PlayableStructure {
+    if (!raw || typeof raw !== 'object') {
+      throw new Error('PlayableStructure is missing or not an object');
+    }
+
+    const obj = raw as Record<string, unknown>;
+    const missing: string[] = [];
+
+    if (!obj.prologue) missing.push('prologue');
+    if (!Array.isArray(obj.acts) || obj.acts.length === 0) missing.push('acts');
+    if (!obj.finale) missing.push('finale');
+    if (!obj.dmHandbook) missing.push('dmHandbook');
+    if (!Array.isArray(obj.playerHandbooks) || obj.playerHandbooks.length === 0) missing.push('playerHandbooks');
+
+    if (missing.length > 0) {
+      throw new Error(`PlayableStructure missing required fields: ${missing.join(', ')}`);
+    }
+
+    return raw as PlayableStructure;
+  }
+
+
   /** Validate generated content against config constraints */
   validateGenerated(
       parsed: { playerHandbooks: PlayerHandbook[]; dmHandbook: DMHandbook; materials: Material[]; branchStructure: BranchStructure },
@@ -284,6 +362,90 @@ ${specialSettingInstruction}
         console.warn(`[validateGenerated] Branch reachability warning: ${(e as Error).message}`);
       }
     }
+
+  /**
+   * Validate PlayableStructure consistency.
+   * Logs warnings for each validation failure rather than throwing.
+   * Requirements: 5.1, 7.1, 7.2, 7.3, 7.4
+   */
+  validatePlayableStructure(playable: PlayableStructure, config: ScriptConfig, materials: Material[]): void {
+    // 1. acts.length === config.roundStructure.totalRounds
+    if (playable.acts.length !== config.roundStructure.totalRounds) {
+      console.warn(
+        `[validatePlayableStructure] Act count mismatch with config: expected ${config.roundStructure.totalRounds}, got ${playable.acts.length}`,
+      );
+    }
+
+    // 2. acts.length === dmHandbook.actGuides.length
+    if (playable.acts.length !== playable.dmHandbook.actGuides.length) {
+      console.warn(
+        `[validatePlayableStructure] Act count mismatch with DM actGuides: expected ${playable.acts.length}, got ${playable.dmHandbook.actGuides.length}`,
+      );
+    }
+
+    // 3. Each playerHandbook.actContents.length === acts.length
+    for (const ph of playable.playerHandbooks) {
+      if (ph.actContents.length !== playable.acts.length) {
+        console.warn(
+          `[validatePlayableStructure] Player ${ph.characterId} actContents count mismatch: expected ${playable.acts.length}, got ${ph.actContents.length}`,
+        );
+      }
+    }
+
+    // 4. All clueIds across acts exist in materials as clue_card
+    const clueCards = materials.filter(m => m.type === MaterialType.CLUE_CARD);
+    const materialClueIds = new Set(
+      clueCards.map(c => (c as unknown as { clueId: string }).clueId).filter(Boolean),
+    );
+    const allActClueIds = new Set<string>();
+
+    for (const act of playable.acts) {
+      for (const clueId of act.clueIds) {
+        allActClueIds.add(clueId);
+        if (!materialClueIds.has(clueId)) {
+          console.warn(
+            `[validatePlayableStructure] Clue ${clueId} in act ${act.actIndex} but not found in materials`,
+          );
+        }
+      }
+    }
+
+    // 5. All clue_card materials are referenced in at least one act's clueIds
+    for (const clueId of materialClueIds) {
+      if (!allActClueIds.has(clueId)) {
+        console.warn(
+          `[validatePlayableStructure] Clue ${clueId} in materials but not referenced in any act`,
+        );
+      }
+    }
+
+    // 6. Each act's clueDistributionInstructions clueIds match act.clueIds
+    for (let i = 0; i < playable.acts.length; i++) {
+      const act = playable.acts[i];
+      const guide = playable.dmHandbook.actGuides[i];
+      if (!guide) continue;
+
+      const actClueSet = new Set(act.clueIds);
+      const distClueSet = new Set(
+        guide.clueDistributionInstructions.map(d => d.clueId),
+      );
+
+      for (const clueId of distClueSet) {
+        if (!actClueSet.has(clueId)) {
+          console.warn(
+            `[validatePlayableStructure] Clue ${clueId} in actGuide[${i}] distribution but not in act[${i}].clueIds`,
+          );
+        }
+      }
+      for (const clueId of actClueSet) {
+        if (!distClueSet.has(clueId)) {
+          console.warn(
+            `[validatePlayableStructure] Clue ${clueId} in act[${i}].clueIds but not in actGuide[${i}] distribution`,
+          );
+        }
+      }
+    }
+  }
 
   /** Validate clue IDs are consistent between distribution and materials */
   validateClueConsistency(distribution: ClueDistributionEntry[], materials: Material[]): void {
@@ -435,6 +597,18 @@ ${specialSettingInstruction}
       const parsed = this.parseGeneratedContent(response.content);
       this.validateGenerated(parsed, original.config);
 
+      // Parse and validate playable structure (if present)
+      let playableStructure: PlayableStructure | undefined;
+      const rawParsed = parsed as Record<string, unknown>;
+      if (rawParsed.playableStructure) {
+        try {
+          playableStructure = this.parsePlayableContent(rawParsed.playableStructure);
+          this.validatePlayableStructure(playableStructure, original.config, parsed.materials);
+        } catch (e) {
+          console.warn(`[optimizeWithFeedback] PlayableStructure parsing/validation warning: ${(e as Error).message}`);
+        }
+      }
+
       const newScript: Script = {
         id: uuidv4(),
         version: newVersion,
@@ -445,6 +619,7 @@ ${specialSettingInstruction}
         playerHandbooks: parsed.playerHandbooks,
         materials: parsed.materials,
         branchStructure: parsed.branchStructure,
+        playableStructure,
         tags: original.tags,
         parentVersionId: original.id,
         status: ScriptStatus.READY,

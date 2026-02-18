@@ -290,6 +290,7 @@ export interface Script {
   status: ScriptStatus;
   aiProvider?: string;
   aiModel?: string;
+  playableStructure?: PlayableStructure;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -327,6 +328,153 @@ export interface CreateConfigInput {
     settingDescription: string;
     settingConstraints: string;
   };
+}
+
+// ─── 可游玩结构（Playable Structure） ───
+
+/** 交流建议 */
+export interface ActDiscussion {
+  topics: string[];
+  guidingQuestions: string[];
+  suggestedMinutes: number;
+}
+
+/** 幕投票选项 */
+export interface ActVoteOption {
+  id: string;
+  text: string;
+  impact: string;
+  nextNodeId?: string;
+}
+
+/** 幕投票 */
+export interface ActVote {
+  question: string;
+  options: ActVoteOption[];
+}
+
+/** 角色介绍（序幕用） */
+export interface CharacterIntro {
+  characterId: string;
+  characterName: string;
+  publicDescription: string;
+}
+
+/** 序幕 */
+export interface Prologue {
+  backgroundNarrative: string;
+  worldSetting: string;
+  characterIntros: CharacterIntro[];
+}
+
+/** 幕 */
+export interface Act {
+  actIndex: number;
+  title: string;
+  narrative: string;
+  objectives: string[];
+  clueIds: string[];
+  discussion: ActDiscussion;
+  vote: ActVote;
+}
+
+/** 终幕结局 */
+export interface FinaleEnding {
+  endingId: string;
+  name: string;
+  triggerCondition: string;
+  narrative: string;
+  playerEndingSummaries: { characterId: string; ending: string }[];
+}
+
+/** 终幕 */
+export interface Finale {
+  finalVote: ActVote;
+  truthReveal: string;
+  endings: FinaleEnding[];
+}
+
+/** 线索分发指令 */
+export interface PlayableClueDistributionInstruction {
+  clueId: string;
+  targetCharacterId: string;
+  condition: string;
+}
+
+/** DM幕指引 */
+export interface ActGuide {
+  actIndex: number;
+  readAloudText: string;
+  keyEventHints: string[];
+  clueDistributionInstructions: PlayableClueDistributionInstruction[];
+  discussionGuidance: string;
+  voteHostingNotes: string;
+  dmPrivateNotes: string;
+}
+
+/** 序幕DM指引 */
+export interface PrologueGuide {
+  openingScript: string;
+  characterAssignmentNotes: string;
+  rulesIntroduction: string;
+}
+
+/** 终幕DM指引 */
+export interface FinaleGuide {
+  finalVoteHostingFlow: string;
+  truthRevealScript: string;
+  endingJudgmentNotes: string;
+}
+
+/** 玩家幕内容 */
+export interface PlayerActContent {
+  actIndex: number;
+  characterId: string;
+  personalNarrative: string;
+  objectives: string[];
+  clueHints: string[];
+  discussionSuggestions: string[];
+  secretInfo: string;
+}
+
+/** 玩家序幕内容 */
+export interface PlayerPrologueContent {
+  characterId: string;
+  backgroundStory: string;
+  relationships: CharacterRelationship[];
+  initialKnowledge: string[];
+}
+
+/** 玩家终幕内容 */
+export interface PlayerFinaleContent {
+  characterId: string;
+  closingStatementGuide: string;
+  votingSuggestion: string;
+}
+
+/** DM可游玩手册 */
+export interface PlayableDMHandbook {
+  prologueGuide: PrologueGuide;
+  actGuides: ActGuide[];
+  finaleGuide: FinaleGuide;
+}
+
+/** 玩家可游玩手册 */
+export interface PlayablePlayerHandbook {
+  characterId: string;
+  characterName: string;
+  prologueContent: PlayerPrologueContent;
+  actContents: PlayerActContent[];
+  finaleContent: PlayerFinaleContent;
+}
+
+/** 可游玩结构 */
+export interface PlayableStructure {
+  prologue: Prologue;
+  acts: Act[];
+  finale: Finale;
+  dmHandbook: PlayableDMHandbook;
+  playerHandbooks: PlayablePlayerHandbook[];
 }
 
 // ─── LLM 错误 ───

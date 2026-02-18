@@ -338,3 +338,85 @@ describe('GeneratorService.buildOptimizationPrompt', () => {
     expect(prompt).toContain('增加线索');
   });
 });
+
+describe('GeneratorService.parsePlayableContent', () => {
+  const service = new GeneratorService(makeMockLLM(''), new SkillService());
+
+  function makeValidPlayableRaw() {
+    return {
+      prologue: { backgroundNarrative: '背景', worldSetting: '世界观', characterIntros: [] },
+      acts: [{ actIndex: 1, title: '第一幕', narrative: '叙述', objectives: [], clueIds: [], discussion: { topics: [], guidingQuestions: [], suggestedMinutes: 5 }, vote: { question: '投票', options: [] } }],
+      finale: { finalVote: { question: '最终投票', options: [] }, truthReveal: '真相', endings: [] },
+      dmHandbook: { prologueGuide: {}, actGuides: [], finaleGuide: {} },
+      playerHandbooks: [{ characterId: 'c1', characterName: '角色1', prologueContent: {}, actContents: [], finaleContent: {} }],
+    };
+  }
+
+  it('returns valid PlayableStructure for complete input', () => {
+    const raw = makeValidPlayableRaw();
+    const result = service.parsePlayableContent(raw);
+    expect(result.prologue).toBeDefined();
+    expect(result.acts).toHaveLength(1);
+    expect(result.finale).toBeDefined();
+    expect(result.dmHandbook).toBeDefined();
+    expect(result.playerHandbooks).toHaveLength(1);
+  });
+
+  it('throws when input is null', () => {
+    expect(() => service.parsePlayableContent(null)).toThrow('missing or not an object');
+  });
+
+  it('throws when input is undefined', () => {
+    expect(() => service.parsePlayableContent(undefined)).toThrow('missing or not an object');
+  });
+
+  it('throws when input is a string', () => {
+    expect(() => service.parsePlayableContent('not an object')).toThrow('missing or not an object');
+  });
+
+  it('lists all missing fields when input is empty object', () => {
+    expect(() => service.parsePlayableContent({})).toThrow('prologue, acts, finale, dmHandbook, playerHandbooks');
+  });
+
+  it('throws when prologue is missing', () => {
+    const raw = makeValidPlayableRaw();
+    delete (raw as Record<string, unknown>).prologue;
+    expect(() => service.parsePlayableContent(raw)).toThrow('prologue');
+  });
+
+  it('throws when acts is empty array', () => {
+    const raw = makeValidPlayableRaw();
+    raw.acts = [];
+    expect(() => service.parsePlayableContent(raw)).toThrow('acts');
+  });
+
+  it('throws when acts is not an array', () => {
+    const raw = makeValidPlayableRaw();
+    (raw as Record<string, unknown>).acts = 'not-array';
+    expect(() => service.parsePlayableContent(raw)).toThrow('acts');
+  });
+
+  it('throws when finale is missing', () => {
+    const raw = makeValidPlayableRaw();
+    delete (raw as Record<string, unknown>).finale;
+    expect(() => service.parsePlayableContent(raw)).toThrow('finale');
+  });
+
+  it('throws when dmHandbook is missing', () => {
+    const raw = makeValidPlayableRaw();
+    delete (raw as Record<string, unknown>).dmHandbook;
+    expect(() => service.parsePlayableContent(raw)).toThrow('dmHandbook');
+  });
+
+  it('throws when playerHandbooks is empty array', () => {
+    const raw = makeValidPlayableRaw();
+    raw.playerHandbooks = [];
+    expect(() => service.parsePlayableContent(raw)).toThrow('playerHandbooks');
+  });
+
+  it('lists multiple missing fields', () => {
+    const raw = { prologue: { backgroundNarrative: '背景' } };
+    expect(() => service.parsePlayableContent(raw)).toThrow('acts, finale, dmHandbook, playerHandbooks');
+  });
+});
+
