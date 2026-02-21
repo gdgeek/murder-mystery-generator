@@ -650,11 +650,10 @@ async function loadCharacters(name){
     el.innerHTML='';
     r.data.forEach(function(c){
       var d=document.createElement('div');d.className='hist-item';d.style.cursor='pointer';
-      var tags=(c.tags||[]).map(function(t){return '<span style="display:inline-block;padding:.1rem .4rem;margin:.1rem;background:rgba(139,92,246,.1);border-radius:4px;font-size:.68rem">'+esc(t)+'</span>'}).join('');
       var mbti=c.mbti_type?'<span style="display:inline-block;padding:.1rem .4rem;margin:.1rem;background:rgba(56,189,248,.15);border-radius:4px;font-size:.68rem">'+esc(c.mbti_type)+'</span>':'';
       var zodiac=c.zodiac_sign?ZODIAC[c.zodiac_sign]||c.zodiac_sign:'';
       var dt=c.created_at?new Date(c.created_at).toLocaleDateString('zh-CN'):'';
-      d.innerHTML='<div class="hist-info"><div class="hist-title">'+esc(c.name)+' <span style="font-size:.72rem;color:var(--dim)">'+esc(c.gender)+(zodiac?' · '+zodiac:'')+'</span></div><div class="hist-meta">'+dt+' '+mbti+tags+'</div></div>';
+      d.innerHTML='<div class="hist-info"><div class="hist-title">'+esc(c.name)+' <span style="font-size:.72rem;color:var(--dim)">'+esc(c.gender)+(zodiac?' · '+zodiac:'')+'</span></div><div class="hist-meta">'+dt+' '+mbti+'</div></div>';
       d.addEventListener('click',function(){loadCharacterDetail(c.id)});
       el.appendChild(d);
     });
@@ -667,7 +666,6 @@ async function loadCharacterDetail(id){
     var r=await api('GET','/api/characters/'+id);
     if(!r.ok){body.innerHTML='<div style="color:var(--err)">加载失败</div>';return}
     var c=r.data;
-    var tags=(c.tags||[]).map(function(t){return '<span style="display:inline-block;padding:.15rem .5rem;margin:.1rem;background:rgba(139,92,246,.1);border-radius:6px;font-size:.72rem">'+esc(t)+'</span>'}).join('')||'<span style="color:var(--dim)">无</span>';
     var html='<div class="fg">';
     html+='<div class="fi"><label>性别</label><div style="padding:.3rem 0">'+esc(c.gender)+'</div></div>';
     html+='<div class="fi"><label>星座</label><div style="padding:.3rem 0">'+esc(c.zodiac_sign?ZODIAC[c.zodiac_sign]||c.zodiac_sign:'未知')+'</div></div>';
@@ -676,8 +674,6 @@ async function loadCharacterDetail(id){
     html+='</div>';
     html+='<div style="margin-top:.5rem"><label style="color:var(--dim);font-size:.78rem">性格</label><div style="font-size:.82rem;line-height:1.6">'+esc(c.personality)+'</div></div>';
     html+='<div style="margin-top:.5rem"><label style="color:var(--dim);font-size:.78rem">外貌</label><div style="font-size:.82rem;line-height:1.6">'+esc(c.appearance)+'</div></div>';
-    if(c.abilities)html+='<div style="margin-top:.5rem"><label style="color:var(--dim);font-size:.78rem">能力</label><div style="font-size:.82rem;line-height:1.6">'+esc(c.abilities)+'</div></div>';
-    html+='<div style="margin-top:.5rem"><label style="color:var(--dim);font-size:.78rem">标签</label><div>'+tags+'</div></div>';
     var exps=c.experiences||[];
     html+='<div style="margin-top:.75rem;border-top:1px solid var(--bdr);padding-top:.75rem"><label style="color:var(--ac);font-size:.82rem;font-weight:600"><i class="bi bi-clock-history"></i> 历史经历 ('+exps.length+')</label></div>';
     if(exps.length===0){html+='<div style="color:var(--dim);font-size:.82rem;margin-top:.3rem">该角色尚未参与任何剧本</div>'}
@@ -686,6 +682,7 @@ async function loadCharacterDetail(id){
       var role=exp.characterType?CTYPE[exp.characterType]||exp.characterType:'';
       html+='<div style="margin-top:.5rem;padding:.6rem;background:rgba(0,0,0,.2);border-radius:8px;border:1px solid var(--bdr)">';
       html+='<div style="font-weight:600;font-size:.82rem;color:var(--bright)">'+esc(exp.scriptTitle||exp.scriptId)+' <span style="font-size:.72rem;color:var(--dim)">'+role+(exp.narrativeRole?' · '+esc(exp.narrativeRole):'')+' · '+dt+'</span></div>';
+      if(exp.abilities)html+='<div style="font-size:.78rem;margin-top:.3rem"><span style="color:var(--dim)">能力：</span>'+esc(exp.abilities)+'</div>';
       if(exp.backgroundStory)html+='<div style="font-size:.78rem;margin-top:.3rem"><span style="color:var(--dim)">背景：</span>'+esc(exp.backgroundStory)+'</div>';
       if(exp.primaryMotivation)html+='<div style="font-size:.78rem;margin-top:.2rem"><span style="color:var(--dim)">动机：</span>'+esc(exp.primaryMotivation)+'</div>';
       if(exp.experienceSummary)html+='<div style="font-size:.78rem;margin-top:.2rem"><span style="color:var(--dim)">经历：</span>'+esc(exp.experienceSummary)+'</div>';

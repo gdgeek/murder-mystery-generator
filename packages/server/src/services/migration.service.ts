@@ -244,6 +244,7 @@ export class MigrationService {
         backgroundStory: ph.backgroundStory,
         relationships: ph.relationships,
         initialKnowledge: ph.knownClues,
+        immersiveNarrative: '',
       };
 
       const actContents: PlayerActContent[] = [];
@@ -264,6 +265,7 @@ export class MigrationService {
         characterId: ph.characterId,
         closingStatementGuide: `作为${ph.characterName}，做最终陈述`,
         votingSuggestion: '',
+        immersiveNarrative: '',
       };
 
       return {

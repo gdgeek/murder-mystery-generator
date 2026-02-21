@@ -445,6 +445,7 @@ export interface PlayerPrologueContent {
   backgroundStory: string;
   relationships: CharacterRelationship[];
   initialKnowledge: string[];
+  immersiveNarrative: string;  // 序幕第二人称沉浸式叙事
 }
 
 /** 玩家终幕内容 */
@@ -452,6 +453,7 @@ export interface PlayerFinaleContent {
   characterId: string;
   closingStatementGuide: string;
   votingSuggestion: string;
+  immersiveNarrative: string;  // 终幕第二人称沉浸式叙事
 }
 
 /** DM可游玩手册 */
@@ -571,8 +573,6 @@ export interface CharacterProfile {
   personality: string;
   /** 通用外貌描述（不涉及具体剧情） */
   appearance: string;
-  /** 通用能力/特质（不涉及具体剧情） */
-  specialTraits?: string[];
 }
 
 /**
@@ -583,6 +583,8 @@ export interface ScriptCharacterBinding {
   characterId: string;
   characterName: string;
   characterType: CharacterType;
+  /** 角色在此剧本中的能力/特质 */
+  abilities?: string[];
   backgroundStory: string;
   primaryMotivation: string;
   secrets: string[];

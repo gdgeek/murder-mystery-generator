@@ -24,6 +24,7 @@ import {
   AggregatedFeedback,
   LLMError,
   PlayableStructure,
+  PlayablePlayerHandbook,
   GenerationMode,
   CharacterDraft,
   CharacterDraftStatus,
@@ -159,6 +160,7 @@ export class GeneratorService {
       try {
         playableStructure = this.parsePlayableContent(rawParsed.playableStructure);
         this.validatePlayableStructure(playableStructure, config, parsed.materials);
+        this.validateNarrativeContent(playableStructure);
       } catch (e) {
         console.warn(`[generate] PlayableStructure parsing/validation warning: ${(e as Error).message}`);
       }
@@ -208,9 +210,24 @@ export class GeneratorService {
     }
 
     return `你是一个专业的剧本杀内容生成器。${langInstruction}
+${specialSettingInstruction}
+
+【沉浸式叙事写作规范】
+1. 视角限制：所有沉浸式叙事必须以第二人称（"你"）作为叙事主语，全程使用"你"描述角色的所见所闻、行为和感受
+2. 信息边界：每个角色的叙事仅包含该角色在该幕中合理可感知的信息，不泄露其他角色的秘密或未获得的线索
+3. 语气匹配：根据角色的 personality 和 mbtiType 调整叙事风格：
+   - 内向型角色（I开头的MBTI）：增加内心独白和观察描写比重
+   - 外向型角色（E开头的MBTI）：增加互动、对话回忆和社交场景描写
+4. 误导信息处理：角色持有的误导性信念以角色确信口吻呈现，不标注为误导信息
+5. 凶手视角：narrativeRole 为 murderer 的角色，叙事中合理隐藏犯罪行为，提供看似合理的替代解释
+6. 嫌疑人视角：narrativeRole 为 suspect 的角色，叙事中呈现可能显得可疑的情境，同时保留无辜视角
+7. 字数要求：personalNarrative 字段只需写1-2句话的角色视角摘要（沉浸式叙事将在后续步骤单独生成）
+8. 序幕叙事：immersiveNarrative 留空（将在后续步骤单独生成）
+9. 终幕叙事：immersiveNarrative 留空（将在后续步骤单独生成）
+10. 同一角色在序幕、各幕和终幕中的叙事语气保持一致的 NarrativeVoice，不出现风格突变
 
 请严格按照以下JSON格式输出完整剧本内容。不要输出任何JSON以外的内容。
-${specialSettingInstruction}
+【重要】immersiveNarrative 字段请留空字符串，personalNarrative 字段只需1-2句话摘要。沉浸式叙事将在后续步骤单独生成。
 
 输出格式：
 {
@@ -247,9 +264,9 @@ ${specialSettingInstruction}
     "playerHandbooks": [{
       "characterId": "",
       "characterName": "",
-      "prologueContent": { "characterId": "", "backgroundStory": "", "relationships": [], "initialKnowledge": [] },
-      "actContents": [{ "actIndex": 1, "characterId": "", "personalNarrative": "", "objectives": [], "clueHints": [], "discussionSuggestions": [], "secretInfo": "" }],
-      "finaleContent": { "characterId": "", "closingStatementGuide": "", "votingSuggestion": "" }
+      "prologueContent": { "characterId": "", "backgroundStory": "", "relationships": [], "initialKnowledge": [], "immersiveNarrative": "" },
+      "actContents": [{ "actIndex": 1, "characterId": "", "personalNarrative": "简短角色视角摘要", "objectives": [], "clueHints": [], "discussionSuggestions": [], "secretInfo": "" }],
+      "finaleContent": { "characterId": "", "closingStatementGuide": "", "votingSuggestion": "", "immersiveNarrative": "" }
     }]
   }
 }`;
@@ -287,6 +304,18 @@ ${specialSettingInstruction}
       }
     }
 
+    const narrativeContextInstruction = `
+
+【跨角色叙事一致性要求】
+请在生成每幕叙事前，先确定该幕的事件事实摘要（时间、地点、参与者、可观察行为），
+然后基于该摘要为每个角色生成各自视角的叙事。不同角色对同一事件的客观要素描述必须一致，
+仅在主观感受、动机推测和信息掌握程度上体现差异。
+
+【沉浸式叙事字段说明】
+- prologueContent.immersiveNarrative：序幕第二人称沉浸式叙事
+- actContents[].personalNarrative：每幕第二人称沉浸式叙事（不少于300字）
+- finaleContent.immersiveNarrative：终幕第二人称沉浸式叙事`;
+
     return `${configSection}${skillSection}${feedbackSection}
 
 请根据以上配置生成完整的剧本杀内容，确保：
@@ -299,7 +328,8 @@ ${specialSettingInstruction}
 7. 幕与幕之间的故事叙述保持连贯性和递进性，情节层层推进
 8. 每幕的线索分发指令（clueDistributionInstructions）中的clueId与该幕的clueIds一致
 9. playableStructure.playerHandbooks中每个角色的actContents数量 = ${config.roundStructure.totalRounds}
-10. 序幕（prologue）包含完整的背景叙述和角色介绍，终幕（finale）包含最终投票和真相揭示`;
+10. 序幕（prologue）包含完整的背景叙述和角色介绍，终幕（finale）包含最终投票和真相揭示
+${narrativeContextInstruction}`;
   }
 
   /** Parse LLM response JSON */
@@ -357,7 +387,18 @@ ${specialSettingInstruction}
       throw new Error(`PlayableStructure missing required fields: ${missing.join(', ')}`);
     }
 
-    return raw as PlayableStructure;
+    // Default immersiveNarrative for LLM output missing the field
+    const playable = raw as PlayableStructure;
+    for (const ph of playable.playerHandbooks) {
+      if (ph.prologueContent && ph.prologueContent.immersiveNarrative === undefined) {
+        ph.prologueContent.immersiveNarrative = '';
+      }
+      if (ph.finaleContent && ph.finaleContent.immersiveNarrative === undefined) {
+        ph.finaleContent.immersiveNarrative = '';
+      }
+    }
+
+    return playable;
   }
 
 
@@ -470,6 +511,47 @@ ${specialSettingInstruction}
     }
   }
 
+  /**
+   * Validate immersive narrative content in playable structure.
+   * Checks second-person perspective ("你") and minimum word count.
+   * Logs warnings for each validation failure rather than throwing.
+   * Requirements: 6.3
+   */
+  validateNarrativeContent(playable: PlayableStructure): void {
+    for (const ph of playable.playerHandbooks) {
+      const charId = ph.characterId;
+
+      // Validate each act's personalNarrative: must contain "你" and be >= 300 chars
+      for (const ac of ph.actContents) {
+        if (!ac.personalNarrative.includes('你')) {
+          console.warn(
+            `[validateNarrativeContent] Player ${charId} act ${ac.actIndex} personalNarrative does not contain "你"`,
+          );
+        }
+        if (ac.personalNarrative.length < 300) {
+          console.warn(
+            `[validateNarrativeContent] Player ${charId} act ${ac.actIndex} personalNarrative length ${ac.personalNarrative.length} < 300`,
+          );
+        }
+      }
+
+      // Validate prologueContent.immersiveNarrative: if non-empty, must contain "你"
+      if (ph.prologueContent.immersiveNarrative && !ph.prologueContent.immersiveNarrative.includes('你')) {
+        console.warn(
+          `[validateNarrativeContent] Player ${charId} prologueContent.immersiveNarrative does not contain "你"`,
+        );
+      }
+
+      // Validate finaleContent.immersiveNarrative: if non-empty, must contain "你"
+      if (ph.finaleContent.immersiveNarrative && !ph.finaleContent.immersiveNarrative.includes('你')) {
+        console.warn(
+          `[validateNarrativeContent] Player ${charId} finaleContent.immersiveNarrative does not contain "你"`,
+        );
+      }
+    }
+  }
+
+
   /** Validate clue IDs are consistent between distribution and materials */
   validateClueConsistency(distribution: ClueDistributionEntry[], materials: Material[]): void {
     const clueCards = materials.filter(m => m.type === MaterialType.CLUE_CARD);
@@ -536,6 +618,20 @@ ${specialSettingInstruction}
     const obj = typeof json === 'string' ? JSON.parse(json) : json;
     obj.createdAt = new Date(obj.createdAt);
     obj.updatedAt = new Date(obj.updatedAt);
+
+    // Backward compatibility: default immersiveNarrative for old data
+    const playable = (obj as Script).playableStructure;
+    if (playable) {
+      for (const ph of playable.playerHandbooks) {
+        if (ph.prologueContent && ph.prologueContent.immersiveNarrative === undefined) {
+          ph.prologueContent.immersiveNarrative = '';
+        }
+        if (ph.finaleContent && ph.finaleContent.immersiveNarrative === undefined) {
+          ph.finaleContent.immersiveNarrative = '';
+        }
+      }
+    }
+
     return obj as Script;
   }
 
@@ -781,7 +877,7 @@ ${specialSettingInstruction}
         systemPrompt,
         prompt: userPrompt,
         temperature: 0.7,
-        maxTokens: 10000,
+        maxTokens: 15000,
       });
 
       // 4. Parse character profiles from LLM response
@@ -1076,18 +1172,16 @@ ${specialSettingInstruction}
      * Persist CharacterProfile[] to the `characters` MySQL table.
      * Uses INSERT IGNORE to skip if a character with the same id already exists.
      * Maps CharacterProfile fields to table columns:
-     *   characterId→id, characterName→name, characterType→character_type,
+     *   characterId→id, characterName→name,
      *   gender→gender, bloodType→blood_type, mbtiType→mbti_type,
-     *   personality→personality, specialTraits→abilities, appearance→appearance, tags→tags(JSON)
+     *   personality→personality, appearance→appearance
      * Requirements: 8.3
      */
     private async persistCharacters(characters: FullCharacterProfile[]): Promise<void> {
       for (const c of characters) {
-        const abilities = c.specialTraits ? c.specialTraits.join(', ') : null;
-        const tags = JSON.stringify([]);
         await pool.execute(
-          `INSERT IGNORE INTO characters (id, name, gender, zodiac_sign, blood_type, mbti_type, personality, abilities, appearance, tags)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT IGNORE INTO characters (id, name, gender, zodiac_sign, blood_type, mbti_type, personality, appearance)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             c.characterId,
             c.characterName,
@@ -1096,9 +1190,7 @@ ${specialSettingInstruction}
             c.bloodType,
             c.mbtiType,
             c.personality,
-            abilities,
             c.appearance,
-            tags,
           ],
         );
       }
@@ -1115,16 +1207,18 @@ ${specialSettingInstruction}
       experienceSummary?: string,
     ): Promise<void> {
       for (const c of characters) {
+        const abilities = c.abilities ? c.abilities.join(', ') : null;
         const secrets = JSON.stringify(c.secrets || []);
         const relationships = JSON.stringify(c.relationships || []);
         await pool.execute(
-          `INSERT INTO script_character_sets (id, character_id, script_id, character_type, background_story, primary_motivation, motivation, experience_summary, narrative_role, secrets, relationships)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO script_character_sets (id, character_id, script_id, character_type, abilities, background_story, primary_motivation, motivation, experience_summary, narrative_role, secrets, relationships)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             uuidv4(),
             c.characterId,
             scriptId,
             c.characterType,
+            abilities,
             c.backgroundStory || null,
             c.primaryMotivation || null,
             c.primaryMotivation,
@@ -1183,8 +1277,8 @@ ${specialSettingInstruction}
     根据以下配置参数，设计一组角色设定。
 
     【重要】角色分为两部分：
-    A. 通用角色属性（存入角色库，可跨剧本复用）：性格、外貌、能力等描述必须是角色本身的固有特质，不要涉及任何具体剧情、案件、事件。
-    B. 剧本关联属性（仅用于本剧本）：背景故事、动机、秘密、关系、叙事定位等与具体剧情相关的内容。
+    A. 通用角色属性（存入角色库，可跨剧本复用）：性格、外貌等描述必须是角色本身的固有特质，不要涉及任何具体剧情、案件、事件。
+    B. 剧本关联属性（仅用于本剧本）：能力/特质、背景故事、动机、秘密、关系、叙事定位等与具体剧情相关的内容。
 
     要求：
     1. 每个角色必须有独特的性格特征
@@ -1201,7 +1295,7 @@ ${specialSettingInstruction}
     8. 角色的性格特征（personality）必须与其MBTI类型和血型保持合理一致性
     9. personality 和 appearance 必须是通用描述，不要提及具体剧情、案件、身份（如"侦探"、"凶手"、"卧底"等剧情角色）
     10. 每个角色必须包含详细的外貌描述（appearance），包括体貌特征和穿着风格，足够详细以便AI图片生成
-    11. specialTraits 是角色的通用能力/特质（如"精通射击"、"过目不忘"），不要涉及具体剧情
+    11. abilities 是角色在此剧本中的能力/特质（如"精通射击"、"过目不忘"），属于剧本关联属性
     ${specialSettingInstruction}
 
     输出格式：JSON数组，不要输出任何JSON以外的内容。
@@ -1216,8 +1310,8 @@ ${specialSettingInstruction}
       "mbtiType": "MBTI类型（如 INTJ）",
       "personality": "通用性格描述（不涉及剧情）",
       "appearance": "通用外貌描述（不涉及剧情身份）",
-      "specialTraits": ["通用能力或特质"],
       "characterType": "player 或 npc（剧本关联）",
+      "abilities": ["本剧本中的能力或特质"],
       "backgroundStory": "本剧本中的背景故事",
       "primaryMotivation": "本剧本中的核心动机",
       "secrets": ["本剧本中的秘密"],
@@ -1262,8 +1356,8 @@ ${specialSettingInstruction}
     1. 恰好 ${config.playerCount} 个 characterType 为 "player" 的玩家角色 + 至少1个 "npc"
     2. 每个角色包含 gender、zodiacSign（12星座英文小写）、bloodType（A/B/O/AB）、mbtiType（16种MBTI类型之一）
     3. 角色性格（personality）与MBTI类型和血型保持合理一致性
-    4. personality、appearance、specialTraits 是通用描述，不涉及具体剧情或案件身份
-    5. backgroundStory、primaryMotivation、secrets、relationships、narrativeRole 是本剧本的关联属性
+    4. personality、appearance 是通用描述，不涉及具体剧情或案件身份
+    5. abilities、backgroundStory、primaryMotivation、secrets、relationships、narrativeRole 是本剧本的关联属性
     6. 每个角色包含详细的外貌描述（appearance），包括体貌特征和穿着风格
     7. 角色之间至少存在一组对立关系和一组合作关系
     8. 每个角色至少有一个秘密`;
@@ -1394,7 +1488,22 @@ ${JSON.stringify(characters, null, 2)}
 7. 故事中角色的行为模式应与其MBTI类型和性格特征保持一致
 ${specialSettingInstruction}
 
+【沉浸式叙事写作规范】
+1. 视角限制：所有沉浸式叙事必须以第二人称（"你"）作为叙事主语，全程使用"你"描述角色的所见所闻、行为和感受
+2. 信息边界：每个角色的叙事仅包含该角色在该幕中合理可感知的信息，不泄露其他角色的秘密或未获得的线索
+3. 语气匹配：根据角色的 personality 和 mbtiType 调整叙事风格：
+   - 内向型角色（I开头的MBTI）：增加内心独白和观察描写比重
+   - 外向型角色（E开头的MBTI）：增加互动、对话回忆和社交场景描写
+4. 误导信息处理：角色持有的误导性信念以角色确信口吻呈现，不标注为误导信息
+5. 凶手视角：narrativeRole 为 murderer 的角色，叙事中合理隐藏犯罪行为，提供看似合理的替代解释
+6. 嫌疑人视角：narrativeRole 为 suspect 的角色，叙事中呈现可能显得可疑的情境，同时保留无辜视角
+7. 字数要求：personalNarrative 字段只需写1-2句话的角色视角摘要（沉浸式叙事将在后续步骤单独生成）
+8. 序幕叙事：immersiveNarrative 留空（将在后续步骤单独生成）
+9. 终幕叙事：immersiveNarrative 留空（将在后续步骤单独生成）
+10. 同一角色在序幕、各幕和终幕中的叙事语气保持一致的 NarrativeVoice，不出现风格突变
+
 请严格按照以下JSON格式输出完整剧本内容。不要输出任何JSON以外的内容。
+【重要】immersiveNarrative 字段请留空字符串，personalNarrative 字段只需1-2句话摘要。沉浸式叙事将在后续步骤单独生成。
 
 输出格式：
 {
@@ -1431,9 +1540,9 @@ ${specialSettingInstruction}
     "playerHandbooks": [{
       "characterId": "",
       "characterName": "",
-      "prologueContent": { "characterId": "", "backgroundStory": "", "relationships": [], "initialKnowledge": [] },
-      "actContents": [{ "actIndex": 1, "characterId": "", "personalNarrative": "", "objectives": [], "clueHints": [], "discussionSuggestions": [], "secretInfo": "" }],
-      "finaleContent": { "characterId": "", "closingStatementGuide": "", "votingSuggestion": "" }
+      "prologueContent": { "characterId": "", "backgroundStory": "", "relationships": [], "initialKnowledge": [], "immersiveNarrative": "" },
+      "actContents": [{ "actIndex": 1, "characterId": "", "personalNarrative": "简短角色视角摘要", "objectives": [], "clueHints": [], "discussionSuggestions": [], "secretInfo": "" }],
+      "finaleContent": { "characterId": "", "closingStatementGuide": "", "votingSuggestion": "", "immersiveNarrative": "" }
     }]
   }
 }`;
@@ -1491,6 +1600,18 @@ ${characters.map(c => `- ${c.characterName}（${c.characterType}）：${c.gender
         }
       }
 
+      const narrativeContextInstruction = `
+
+【跨角色叙事一致性要求】
+请在生成每幕叙事前，先确定该幕的事件事实摘要（时间、地点、参与者、可观察行为），
+然后基于该摘要为每个角色生成各自视角的叙事。不同角色对同一事件的客观要素描述必须一致，
+仅在主观感受、动机推测和信息掌握程度上体现差异。
+
+【沉浸式叙事字段说明】
+- prologueContent.immersiveNarrative：序幕第二人称沉浸式叙事
+- actContents[].personalNarrative：每幕第二人称沉浸式叙事（不少于300字）
+- finaleContent.immersiveNarrative：终幕第二人称沉浸式叙事`;
+
       return `${characterSection}${configSection}${skillSection}${feedbackSection}
 
 请基于以上角色设定和配置生成完整的剧本杀故事内容，确保：
@@ -1505,7 +1626,8 @@ ${characters.map(c => `- ${c.characterName}（${c.characterType}）：${c.gender
 9. playableStructure.playerHandbooks中每个角色的actContents数量 = ${config.roundStructure.totalRounds}
 10. 序幕（prologue）包含完整的背景叙述和角色介绍，终幕（finale）包含最终投票和真相揭示
 11. 不得引入角色设定中未定义的角色
-12. 角色行为模式与其MBTI类型和性格特征保持一致`;
+12. 角色行为模式与其MBTI类型和性格特征保持一致
+${narrativeContextInstruction}`;
     }
 
     /**
@@ -1692,7 +1814,7 @@ ${characters.map(c => `- ${c.characterName}（${c.characterType}）：${c.gender
             systemPrompt,
             prompt: userPrompt,
             temperature: 0.7,
-            maxTokens: 20000,
+            maxTokens: 30000,
           });
 
           // 4. Parse response
@@ -1708,6 +1830,12 @@ ${characters.map(c => `- ${c.characterName}（${c.characterType}）：${c.gender
             try {
               playableStructure = this.parsePlayableContent(rawParsed.playableStructure);
               this.validatePlayableStructure(playableStructure, config, parsed.materials);
+
+              // 5c. Enrich narrative content with separate LLM calls per character
+              console.log('[generateStory] Enriching narrative content...');
+              await this.enrichNarrativeContent(playableStructure, characters, config);
+
+              this.validateNarrativeContent(playableStructure);
             } catch (e) {
               console.warn(`[generateStory] PlayableStructure parsing/validation warning: ${(e as Error).message}`);
             }
@@ -1737,6 +1865,155 @@ ${characters.map(c => `- ${c.characterName}（${c.characterType}）：${c.gender
 
           return script;
         }
+
+      /**
+       * Enrich narrative content by making separate LLM calls per character.
+       * After the main script generation produces a skeleton, this method fills in
+       * immersiveNarrative (prologue/finale) and upgrades personalNarrative (each act)
+       * with rich second-person immersive text.
+       */
+      async enrichNarrativeContent(
+        playable: PlayableStructure,
+        characters: FullCharacterProfile[],
+        config: ScriptConfig,
+      ): Promise<void> {
+        const characterMap = new Map<string, FullCharacterProfile>();
+        for (const c of characters) {
+          characterMap.set(c.characterId, c);
+        }
+
+        // Build act summaries for cross-character consistency
+        const actSummaries = playable.acts.map(act =>
+          `第${act.actIndex}幕「${act.title}」：${act.narrative}`,
+        ).join('\n');
+
+        for (const ph of playable.playerHandbooks) {
+          const profile = characterMap.get(ph.characterId);
+          if (!profile) continue;
+
+          try {
+            console.log(`[enrichNarrativeContent] Generating narrative for ${ph.characterName}...`);
+            const prompt = this.buildNarrativeEnrichmentPrompt(ph, profile, playable, actSummaries, config);
+
+            const response = await this.llmAdapter.send({
+              systemPrompt: `你是一位专业的剧本杀沉浸式叙事作家。你的任务是为角色生成第二人称（"你"）视角的沉浸式叙事文本。
+    请严格按照JSON格式输出，不要输出任何JSON以外的内容。`,
+              prompt,
+              temperature: 0.8,
+              maxTokens: 8000,
+            });
+
+            // Parse the narrative response
+            let jsonStr = response.content.trim();
+            const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
+            if (jsonMatch) jsonStr = jsonMatch[1].trim();
+            if (!jsonStr.startsWith('{')) {
+              const firstBrace = jsonStr.indexOf('{');
+              const lastBrace = jsonStr.lastIndexOf('}');
+              if (firstBrace !== -1 && lastBrace > firstBrace) {
+                jsonStr = jsonStr.slice(firstBrace, lastBrace + 1);
+              }
+            }
+
+            const narrativeData = JSON.parse(jsonStr) as {
+              prologueNarrative?: string;
+              actNarratives?: string[];
+              finaleNarrative?: string;
+            };
+
+            // Apply enriched narratives
+            if (narrativeData.prologueNarrative) {
+              ph.prologueContent.immersiveNarrative = narrativeData.prologueNarrative;
+            }
+            if (narrativeData.actNarratives && Array.isArray(narrativeData.actNarratives)) {
+              for (let i = 0; i < Math.min(narrativeData.actNarratives.length, ph.actContents.length); i++) {
+                if (narrativeData.actNarratives[i]) {
+                  ph.actContents[i].personalNarrative = narrativeData.actNarratives[i];
+                }
+              }
+            }
+            if (narrativeData.finaleNarrative) {
+              ph.finaleContent.immersiveNarrative = narrativeData.finaleNarrative;
+            }
+
+            console.log(`[enrichNarrativeContent] Done for ${ph.characterName}`);
+          } catch (err) {
+            console.warn(`[enrichNarrativeContent] Failed for ${ph.characterName}: ${(err as Error).message}`);
+            // Non-fatal: keep the skeleton narrative
+          }
+        }
+      }
+
+      /**
+       * Build the prompt for narrative enrichment of a single character.
+       */
+      private buildNarrativeEnrichmentPrompt(
+        handbook: PlayablePlayerHandbook,
+        profile: FullCharacterProfile,
+        playable: PlayableStructure,
+        actSummaries: string,
+        config: ScriptConfig,
+      ): string {
+        const actDetails = handbook.actContents.map(ac => {
+          const act = playable.acts.find(a => a.actIndex === ac.actIndex);
+          return `第${ac.actIndex}幕：
+      - 全局叙述：${act?.narrative || ''}
+      - 角色目标：${ac.objectives.join('、')}
+      - 线索提示：${ac.clueHints.join('、')}
+      - 秘密信息：${ac.secretInfo}
+      - 当前骨架叙事：${ac.personalNarrative}`;
+        }).join('\n');
+
+        return `请为角色「${profile.characterName}」生成完整的第二人称（"你"）沉浸式叙事。
+
+    【角色设定】
+    - 姓名：${profile.characterName}
+    - 性别：${profile.gender}
+    - MBTI：${profile.mbtiType}
+    - 血型：${profile.bloodType}
+    - 性格：${profile.personality}
+    - 外貌：${profile.appearance}
+    - 背景故事：${profile.backgroundStory}
+    - 核心动机：${profile.primaryMotivation}
+    - 叙事定位：${profile.narrativeRole}
+    - 秘密：${(profile.secrets || []).join('；')}
+    - 关系：${(profile.relationships || []).map(r => `${r.targetCharacterName}(${r.relationshipType}): ${r.description}`).join('；')}
+
+    【故事背景】
+    ${playable.prologue.backgroundNarrative}
+
+    【各幕概要】
+    ${actSummaries}
+
+    【角色各幕详情】
+    ${actDetails}
+
+    【序幕背景】
+    ${handbook.prologueContent.backgroundStory}
+
+    【写作规范】
+    1. 全程使用第二人称"你"作为叙事主语
+    2. 根据角色MBTI调整风格：${profile.mbtiType.startsWith('I') ? '内向型——多内心独白和观察描写' : '外向型——多互动、对话和社交场景'}
+    3. 每幕叙事不少于300字
+    4. 仅描述该角色合理可感知的信息，不泄露其他角色秘密
+    5. ${profile.narrativeRole === 'murderer' ? '作为凶手，合理隐藏犯罪行为，提供看似合理的替代解释' : profile.narrativeRole === 'suspect' ? '作为嫌疑人，呈现可能显得可疑的情境，同时保留无辜视角' : '以角色自身视角真实描述经历'}
+    6. 误导性信念以角色确信口吻呈现，不标注为误导信息
+    7. 序幕叙事融入内心独白和情感基调，以暗示方式埋入角色秘密线索
+    8. 终幕叙事呈现角色对事件全貌的个人理解和面对最终审判的心理状态
+    9. 全篇保持一致的叙事语气（NarrativeVoice），不出现风格突变
+
+    请输出以下JSON格式：
+    {
+      "prologueNarrative": "序幕沉浸式叙事（以'你'开头，200+字）",
+      "actNarratives": [
+        "第1幕沉浸式叙事（以'你'开头，300+字）",
+        "第2幕沉浸式叙事（以'你'开头，300+字）",
+        ...共${config.roundStructure.totalRounds}个
+      ],
+      "finaleNarrative": "终幕沉浸式叙事（以'你'开头，200+字）"
+    }`;
+      }
+
 
 
     /**
