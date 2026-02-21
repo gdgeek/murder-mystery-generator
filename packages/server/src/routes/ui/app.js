@@ -100,7 +100,44 @@ if(r.ok){ci=r.data.id;$('#wf-cid').textContent=ci;saveHash();go(1)}});
 
 // Step 1: Create session (with ephemeral AI config support)
 $('#wf-bs').addEventListener('click',async function(){var b=$('#wf-bs');b.disabled=true;b.innerHTML='<span class="sp"></span>创建中...';
-var body={configId:ci,mode:$('#wf-md').value};
+var gm=$('#wf-gm').value;
+if(gm==='character_first'){
+  // Character-first generation mode
+  var body={configId:ci};
+  if(ephAi)body.ephemeralAiConfig=ephAi;
+  var r=await api('POST','/api/scripts/generate-characters',body);sr($('#wf-sr'),r.data,r.ok);
+  if(!r.ok){b.disabled=false;b.innerHTML='<i class="bi bi-arrow-right"></i>创建并推进';return}
+  var jobId=r.data.jobId;si=jobId;saveHash();showSessionId(jobId);
+  b.disabled=false;b.innerHTML='<i class="bi bi-arrow-right"></i>创建并推进';
+  go(2);disableStep(2);ss($('#wf-ps'),'角色生成中，请耐心等待…','w');
+  // Poll the job for character_first statuses
+  sp();pt=setInterval(async function(){
+    try{
+      var jr=await api('GET','/api/scripts/jobs/'+jobId);
+      if(!jr.ok)return;
+      var job=jr.data;
+      if(job.status==='characters_ready'){
+        sp();
+        // Load character draft and show review UI
+        var dr=await api('GET','/api/scripts/jobs/'+jobId+'/characters');
+        if(dr.ok&&dr.data&&dr.data.characters){
+          renderCharacterReview(jobId,dr.data.characters);
+        }else{
+          ss($('#wf-ps'),'加载角色草稿失败','e');sr($('#wf-pr'),dr.data||'加载失败',false);enableStep(2);
+        }
+      }else if(job.status==='generating_story'){
+        ss($('#wf-ps'),'故事生成中，请耐心等待…','w');
+      }else if(job.status==='completed'){
+        sp();go(5);sr($('#wf-ar'),{message:'剧本生成完成',scriptId:job.scriptId},true);
+        if(job.scriptId)$('#wf-exp').dataset.scriptId=job.scriptId;
+      }else if(job.status==='failed'){
+        sp();ss($('#wf-ps'),'生成失败：'+(job.error||'未知错误'),'e');sr($('#wf-pr'),job,false);enableStep(2);
+      }
+    }catch(e){}
+  },3000);
+  return;
+}
+var body={configId:ci,mode:gm};
 if(ephAi)body.ephemeralAiConfig=ephAi;
 var r=await api('POST','/api/authoring-sessions',body);sr($('#wf-sr'),r.data,r.ok);
 if(!r.ok){b.disabled=false;b.innerHTML='<i class="bi bi-arrow-right"></i>创建并推进';return}
@@ -522,7 +559,149 @@ function renderMd(md){
 }
 async function loadWorkLogRaw(date){var el=$('#wl-raw-content');el.innerHTML='<span class="sp"></span> 加载中...';try{var url='/api/work-log/raw';if(date)url+='?date='+date;var r=await api('GET',url);if(r.ok&&r.data.content){el.innerHTML=renderMd(r.data.content)}else{el.innerHTML='<span style="color:var(--dim)">'+(date?date+' 暂无工作日志':'暂无工作日志')+'</span>'}}catch(e){el.innerHTML='<span style="color:var(--err)">加载失败</span>'}}
 async function loadWorkLogDates(){var sel=$('#wl-date-sel');try{var r=await api('GET','/api/work-log/dates');if(r.ok&&r.data.dates){sel.innerHTML='<option value="">全部</option>';r.data.dates.forEach(function(d){var o=document.createElement('option');o.value=d;o.textContent=d;sel.appendChild(o)})}}catch(e){}}
-$('#wl-date-sel').addEventListener('change',function(){loadWorkLogRaw(this.value||undefined)})
+$('#wl-date-sel').addEventListener('change',function(){loadWorkLogRaw(this.value||undefined)});
+
+// ─── Character-First: Review UI in workflow ───
+var ZODIAC={aries:'白羊座',taurus:'金牛座',gemini:'双子座',cancer:'巨蟹座',leo:'狮子座',virgo:'处女座',libra:'天秤座',scorpio:'天蝎座',sagittarius:'射手座',capricorn:'摩羯座',aquarius:'水瓶座',pisces:'双鱼座'};
+var CTYPE={player:'玩家角色',npc:'NPC'};
+function escA(s){return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function renderCharacterReview(jobId,chars){
+  go(2);enableStep(2);
+  ss($('#wf-ps'),'角色已生成，请审查后确认','o');
+  var el=$('#wf-pc2');var parent=el.parentElement;
+  var html='<div style="margin-bottom:.75rem;font-size:.82rem;color:var(--dim)">共 '+chars.length+' 个角色，点击标题展开编辑</div>';
+  chars.forEach(function(c,i){
+    var tl=CTYPE[c.characterType]||c.characterType;
+    html+='<div class="g" style="margin-bottom:.5rem"><div class="gh cf-toggle" style="cursor:pointer" data-idx="'+i+'"><h3 style="font-size:.88rem"><i class="bi bi-person"></i> '+esc(c.characterName)+' <span style="font-size:.72rem;color:var(--dim)">'+tl+' · '+esc(c.gender)+'</span></h3></div>';
+    html+='<div class="gb" style="display:'+(i===0?'block':'none')+'" id="cf-char-'+i+'">';
+    html+='<div class="fg">';
+    html+='<div class="fi"><label>姓名</label><input type="text" data-cid="'+c.characterId+'" data-f="characterName" value="'+escA(c.characterName)+'"></div>';
+    html+='<div class="fi"><label>性别</label><input type="text" data-cid="'+c.characterId+'" data-f="gender" value="'+escA(c.gender)+'"></div>';
+    html+='<div class="fi"><label>血型</label><select data-cid="'+c.characterId+'" data-f="bloodType">'+['A','B','O','AB'].map(function(t){return '<option value="'+t+'"'+(c.bloodType===t?' selected':'')+'>'+t+'</option>'}).join('')+'</select></div>';
+    html+='<div class="fi"><label>星座</label><select data-cid="'+c.characterId+'" data-f="zodiacSign">'+Object.keys(ZODIAC).map(function(k){return '<option value="'+k+'"'+(c.zodiacSign===k?' selected':'')+'>'+ZODIAC[k]+'</option>'}).join('')+'</select></div>';
+    html+='<div class="fi"><label>MBTI</label><input type="text" data-cid="'+c.characterId+'" data-f="mbtiType" value="'+escA(c.mbtiType||'')+'" maxlength="4"></div>';
+    html+='</div>';
+    html+='<div class="fi" style="margin-top:.4rem"><label>性格</label><textarea data-cid="'+c.characterId+'" data-f="personality" rows="2">'+esc(c.personality)+'</textarea></div>';
+    html+='<div class="fi" style="margin-top:.4rem"><label>外貌</label><textarea data-cid="'+c.characterId+'" data-f="appearance" rows="2">'+esc(c.appearance)+'</textarea></div>';
+    html+='<div class="fi" style="margin-top:.4rem"><label>背景故事</label><textarea data-cid="'+c.characterId+'" data-f="backgroundStory" rows="3">'+esc(c.backgroundStory)+'</textarea></div>';
+    html+='<div class="fi" style="margin-top:.4rem"><label>主要动机</label><textarea data-cid="'+c.characterId+'" data-f="primaryMotivation" rows="2">'+esc(c.primaryMotivation)+'</textarea></div>';
+    html+='<div class="fi" style="margin-top:.4rem"><label>秘密（每行一条）</label><textarea data-cid="'+c.characterId+'" data-f="secrets" rows="3">'+esc((c.secrets||[]).join('\n'))+'</textarea></div>';
+    if(c.relationships&&c.relationships.length>0){
+      html+='<div style="margin-top:.4rem;font-size:.8rem"><label style="color:var(--dim)">关系</label><div>';
+      c.relationships.forEach(function(r){html+='<span style="display:inline-block;padding:.15rem .5rem;margin:.15rem .2rem;background:rgba(139,92,246,.1);border-radius:6px;font-size:.75rem">'+esc(r.targetCharacterName)+'('+esc(r.relationshipType)+')</span>'});
+      html+='</div></div>';
+    }
+    html+='<div style="margin-top:.5rem"><button class="btn bg cf-save" data-cid="'+c.characterId+'" data-job="'+jobId+'" style="font-size:.72rem;padding:.3rem .6rem"><i class="bi bi-floppy"></i>保存修改</button></div>';
+    html+='</div></div>';
+  });
+  html+='<div style="display:flex;gap:.5rem;margin-top:.75rem"><button class="btn bs" id="cf-confirm"><i class="bi bi-check-lg"></i>确认角色，开始生成故事</button><button class="btn bg" id="cf-skip"><i class="bi bi-fast-forward"></i>跳过审查</button></div>';
+  parent.innerHTML=html;
+  // Toggle accordion
+  parent.querySelectorAll('.cf-toggle').forEach(function(t){t.addEventListener('click',function(){var idx=t.dataset.idx;var bd=parent.querySelector('#cf-char-'+idx);if(bd)bd.style.display=bd.style.display==='none'?'block':'none'})});
+  // Bind save buttons
+  parent.querySelectorAll('.cf-save').forEach(function(btn){btn.addEventListener('click',async function(){
+    var cid=btn.dataset.cid,jid=btn.dataset.job;
+    btn.disabled=true;btn.innerHTML='<span class="sp"></span>保存中...';
+    var updates={};
+    parent.querySelectorAll('[data-cid="'+cid+'"]').forEach(function(el){
+      if(!el.dataset.f)return;
+      if(el.dataset.f==='secrets'){updates.secrets=el.value.split('\n').map(function(s){return s.trim()}).filter(Boolean)}
+      else if(el.tagName==='SELECT'){updates[el.dataset.f]=el.value}
+      else{updates[el.dataset.f]=el.value}
+    });
+    var r=await api('PUT','/api/scripts/jobs/'+jid+'/characters/'+cid,updates);
+    btn.disabled=false;btn.innerHTML='<i class="bi bi-floppy"></i>保存修改';
+    if(r.ok){ss($('#wf-ps'),'角色已保存','o')}else{ss($('#wf-ps'),'保存失败：'+(r.data&&r.data.error||'未知错误'),'e')}
+  })});
+  function startStoryPoll(){
+    ss($('#wf-ps'),'角色已确认，故事生成中…','w');disableStep(2);
+    sp();pt=setInterval(async function(){
+      try{var jr=await api('GET','/api/scripts/jobs/'+jobId);if(!jr.ok)return;var job=jr.data;
+      if(job.status==='completed'){sp();go(5);sr($('#wf-ar'),{message:'剧本生成完成',scriptId:job.scriptId},true);if(job.scriptId)$('#wf-exp').dataset.scriptId=job.scriptId}
+      else if(job.status==='failed'){sp();ss($('#wf-ps'),'故事生成失败：'+(job.error||'未知错误'),'e')}
+      }catch(e){}
+    },3000);
+  }
+  parent.querySelector('#cf-confirm').addEventListener('click',async function(){
+    var btn=parent.querySelector('#cf-confirm');btn.disabled=true;btn.innerHTML='<span class="sp"></span>确认中...';
+    parent.querySelector('#cf-skip').disabled=true;
+    var r=await api('POST','/api/scripts/jobs/'+jobId+'/confirm-characters',{});
+    if(!r.ok){btn.disabled=false;btn.innerHTML='<i class="bi bi-check-lg"></i>确认角色，开始生成故事';parent.querySelector('#cf-skip').disabled=false;ss($('#wf-ps'),'确认失败：'+(r.data&&r.data.error||'未知错误'),'e');return}
+    startStoryPoll();
+  });
+  parent.querySelector('#cf-skip').addEventListener('click',async function(){
+    var btn=parent.querySelector('#cf-skip');btn.disabled=true;btn.innerHTML='<span class="sp"></span>跳过中...';
+    parent.querySelector('#cf-confirm').disabled=true;
+    var r=await api('POST','/api/scripts/jobs/'+jobId+'/skip-review',{});
+    if(!r.ok){btn.disabled=false;btn.innerHTML='<i class="bi bi-fast-forward"></i>跳过审查';parent.querySelector('#cf-confirm').disabled=false;ss($('#wf-ps'),'操作失败：'+(r.data&&r.data.error||'未知错误'),'e');return}
+    startStoryPoll();
+  });
+}
+
+// ─── Characters Tab ───
+async function loadCharacters(name){
+  var el=$('#char-list');el.innerHTML='<div style="color:var(--dim);font-size:.82rem"><span class="sp"></span> 加载中...</div>';
+  $('#char-detail-panel').style.display='none';
+  try{
+    var url='/api/characters';if(name)url+='?name='+encodeURIComponent(name);
+    var r=await api('GET',url);
+    if(!r.ok){el.innerHTML='<div style="color:var(--err);font-size:.82rem">加载失败</div>';return}
+    if(!r.data||r.data.length===0){el.innerHTML='<div style="color:var(--dim);font-size:.82rem">暂无角色</div>';return}
+    el.innerHTML='';
+    r.data.forEach(function(c){
+      var d=document.createElement('div');d.className='hist-item';d.style.cursor='pointer';
+      var tags=(c.tags||[]).map(function(t){return '<span style="display:inline-block;padding:.1rem .4rem;margin:.1rem;background:rgba(139,92,246,.1);border-radius:4px;font-size:.68rem">'+esc(t)+'</span>'}).join('');
+      var mbti=c.mbti_type?'<span style="display:inline-block;padding:.1rem .4rem;margin:.1rem;background:rgba(56,189,248,.15);border-radius:4px;font-size:.68rem">'+esc(c.mbti_type)+'</span>':'';
+      var zodiac=c.zodiac_sign?ZODIAC[c.zodiac_sign]||c.zodiac_sign:'';
+      var dt=c.created_at?new Date(c.created_at).toLocaleDateString('zh-CN'):'';
+      d.innerHTML='<div class="hist-info"><div class="hist-title">'+esc(c.name)+' <span style="font-size:.72rem;color:var(--dim)">'+esc(c.gender)+(zodiac?' · '+zodiac:'')+'</span></div><div class="hist-meta">'+dt+' '+mbti+tags+'</div></div>';
+      d.addEventListener('click',function(){loadCharacterDetail(c.id)});
+      el.appendChild(d);
+    });
+  }catch(e){el.innerHTML='<div style="color:var(--err);font-size:.82rem">网络错误</div>'}
+}
+async function loadCharacterDetail(id){
+  var panel=$('#char-detail-panel');var body=$('#char-detail-body');
+  panel.style.display='block';body.innerHTML='<span class="sp"></span> 加载中...';
+  try{
+    var r=await api('GET','/api/characters/'+id);
+    if(!r.ok){body.innerHTML='<div style="color:var(--err)">加载失败</div>';return}
+    var c=r.data;
+    var tags=(c.tags||[]).map(function(t){return '<span style="display:inline-block;padding:.15rem .5rem;margin:.1rem;background:rgba(139,92,246,.1);border-radius:6px;font-size:.72rem">'+esc(t)+'</span>'}).join('')||'<span style="color:var(--dim)">无</span>';
+    var html='<div class="fg">';
+    html+='<div class="fi"><label>性别</label><div style="padding:.3rem 0">'+esc(c.gender)+'</div></div>';
+    html+='<div class="fi"><label>星座</label><div style="padding:.3rem 0">'+esc(c.zodiac_sign?ZODIAC[c.zodiac_sign]||c.zodiac_sign:'未知')+'</div></div>';
+    html+='<div class="fi"><label>血型</label><div style="padding:.3rem 0">'+esc(c.blood_type||'未知')+'</div></div>';
+    html+='<div class="fi"><label>MBTI</label><div style="padding:.3rem 0">'+esc(c.mbti_type||'未知')+'</div></div>';
+    html+='</div>';
+    html+='<div style="margin-top:.5rem"><label style="color:var(--dim);font-size:.78rem">性格</label><div style="font-size:.82rem;line-height:1.6">'+esc(c.personality)+'</div></div>';
+    html+='<div style="margin-top:.5rem"><label style="color:var(--dim);font-size:.78rem">外貌</label><div style="font-size:.82rem;line-height:1.6">'+esc(c.appearance)+'</div></div>';
+    if(c.abilities)html+='<div style="margin-top:.5rem"><label style="color:var(--dim);font-size:.78rem">能力</label><div style="font-size:.82rem;line-height:1.6">'+esc(c.abilities)+'</div></div>';
+    html+='<div style="margin-top:.5rem"><label style="color:var(--dim);font-size:.78rem">标签</label><div>'+tags+'</div></div>';
+    var exps=c.experiences||[];
+    html+='<div style="margin-top:.75rem;border-top:1px solid var(--bdr);padding-top:.75rem"><label style="color:var(--ac);font-size:.82rem;font-weight:600"><i class="bi bi-clock-history"></i> 历史经历 ('+exps.length+')</label></div>';
+    if(exps.length===0){html+='<div style="color:var(--dim);font-size:.82rem;margin-top:.3rem">该角色尚未参与任何剧本</div>'}
+    else{exps.forEach(function(exp){
+      var dt=exp.createdAt?new Date(exp.createdAt).toLocaleDateString('zh-CN'):'';
+      var role=exp.characterType?CTYPE[exp.characterType]||exp.characterType:'';
+      html+='<div style="margin-top:.5rem;padding:.6rem;background:rgba(0,0,0,.2);border-radius:8px;border:1px solid var(--bdr)">';
+      html+='<div style="font-weight:600;font-size:.82rem;color:var(--bright)">'+esc(exp.scriptTitle||exp.scriptId)+' <span style="font-size:.72rem;color:var(--dim)">'+role+(exp.narrativeRole?' · '+esc(exp.narrativeRole):'')+' · '+dt+'</span></div>';
+      if(exp.backgroundStory)html+='<div style="font-size:.78rem;margin-top:.3rem"><span style="color:var(--dim)">背景：</span>'+esc(exp.backgroundStory)+'</div>';
+      if(exp.primaryMotivation)html+='<div style="font-size:.78rem;margin-top:.2rem"><span style="color:var(--dim)">动机：</span>'+esc(exp.primaryMotivation)+'</div>';
+      if(exp.experienceSummary)html+='<div style="font-size:.78rem;margin-top:.2rem"><span style="color:var(--dim)">经历：</span>'+esc(exp.experienceSummary)+'</div>';
+      if(exp.secrets&&exp.secrets.length>0){html+='<div style="font-size:.78rem;margin-top:.2rem"><span style="color:var(--dim)">秘密：</span>'+exp.secrets.map(function(s){return esc(s)}).join('；')+'</div>'}
+      html+='</div>';
+    })}
+    body.innerHTML=html;
+    $('#char-detail-title').innerHTML='<i class="bi bi-person-badge"></i> '+esc(c.name);
+  }catch(e){body.innerHTML='<div style="color:var(--err)">网络错误</div>'}
+}
+$('#char-refresh').addEventListener('click',function(){loadCharacters($('#char-search').value.trim()||undefined)});
+$('#char-search-btn').addEventListener('click',function(){loadCharacters($('#char-search').value.trim()||undefined)});
+$('#char-search').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();loadCharacters($('#char-search').value.trim()||undefined)}});
+$('#char-back').addEventListener('click',function(){$('#char-detail-panel').style.display='none'});
+$$('.tb').forEach(function(b){if(b.dataset.tab==='characters')b.addEventListener('click',function(){loadCharacters()})});
+
 async function loadDiaryList(){var el=$('#wl-diary-list');el.innerHTML='<span class="sp"></span> 加载中...';try{var r=await api('GET','/api/work-log/diary');if(!r.ok||!r.data.entries||r.data.entries.length===0){el.innerHTML='<div style="color:var(--dim);font-size:.82rem">暂无每日日记，请手动触发 daily-summary hook 生成</div>';return}el.innerHTML='';r.data.entries.forEach(function(e){var d=document.createElement('div');d.className='hist-item';d.style.cursor='pointer';d.innerHTML='<div class="hist-info"><div class="hist-title"><i class="bi bi-calendar-event" style="color:var(--ac);margin-right:.4rem"></i>'+esc(e.date)+'</div><div class="hist-meta">点击查看详情</div></div>';d.addEventListener('click',function(){loadDiaryDetail(e.date)});el.appendChild(d)})}catch(e){el.innerHTML='<div style="color:var(--err);font-size:.82rem">加载失败</div>'}}
 async function loadDiaryDetail(date){var el=$('#wl-diary-detail');el.style.display='block';el.innerHTML='<span class="sp"></span> 加载中...';try{var r=await api('GET','/api/work-log/diary/'+date);if(r.ok){el.innerHTML='<button class="btn bg" onclick="this.parentElement.style.display=&quot;none&quot;" style="font-size:.7rem;padding:.2rem .5rem;margin-bottom:.5rem"><i class="bi bi-arrow-left"></i>返回</button>'+renderMd(r.data.content)}else{el.innerHTML='<span style="color:var(--err)">'+esc((r.data&&r.data.error)||'加载失败')+'</span>'}}catch(e){el.innerHTML='<span style="color:var(--err)">网络错误</span>'}}
 $$('.wl-sw').forEach(function(b){b.addEventListener('click',function(){$$('.wl-sw').forEach(function(x){x.classList.remove('on')});b.classList.add('on');var t=b.dataset.wl;$('#wl-raw-view').style.display=t==='raw'?'block':'none';$('#wl-diary-view').style.display=t==='diary'?'block':'none';if(t==='raw'){loadWorkLogDates();loadWorkLogRaw()}if(t==='diary')loadDiaryList()})});

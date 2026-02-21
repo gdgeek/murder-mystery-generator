@@ -1,10 +1,15 @@
 /**
  * Script API routes
  * POST /api/scripts/generate - Generate script
+ * POST /api/scripts/generate-characters - Start character-first generation
  * GET  /api/scripts - List scripts
  * GET  /api/scripts/:id - Get script
  * GET  /api/scripts/:id/versions - Get version history
  * POST /api/scripts/:id/optimize - Optimize with feedback
+ * GET  /api/scripts/jobs/:jobId/characters - Get character draft
+ * PUT  /api/scripts/jobs/:jobId/characters/:characterId - Update character profile
+ * POST /api/scripts/jobs/:jobId/confirm-characters - Confirm characters, trigger phase 2
+ * POST /api/scripts/jobs/:jobId/skip-review - Skip review, auto-confirm and enter phase 2
  */
 
 import { Router, Request, Response } from 'express';
@@ -13,7 +18,7 @@ import { ConfigService } from '../services/config.service';
 import { SkillService } from '../services/skill.service';
 import { createLLMAdapter } from '../adapters/create-llm-adapter';
 import { AuthoringService } from '../services/authoring/authoring.service';
-import { Script, AiStepMeta } from '@gdgeek/murder-mystery-shared';
+import { Script, AiStepMeta, FullCharacterProfile, GenerationMode } from '@gdgeek/murder-mystery-shared';
 
 const router: Router = Router();
 const configService = new ConfigService();
@@ -52,6 +57,11 @@ async function resolveScript(id: string): Promise<Script | null> {
  *               configId:
  *                 type: string
  *                 description: 关联的剧本配置标识
+ *               generationMode:
+ *                 type: string
+ *                 enum: [oneshot, character_first]
+ *                 default: oneshot
+ *                 description: 生成模式，oneshot 为一次性生成，character_first 为角色优先两阶段生成
  *     responses:
  *       202:
  *         description: 剧本生成任务已创建
@@ -87,7 +97,7 @@ async function resolveScript(id: string): Promise<Script | null> {
  */
 router.post('/generate', async (req: Request, res: Response) => {
   try {
-    const { configId } = req.body;
+    const { configId, generationMode = 'oneshot' } = req.body as { configId?: string; generationMode?: GenerationMode };
     if (!configId) {
       res.status(400).json({ error: 'configId is required' });
       return;
@@ -97,7 +107,9 @@ router.post('/generate', async (req: Request, res: Response) => {
       res.status(404).json({ error: 'Config not found' });
       return;
     }
-    const job = await generatorService.startGenerate(config);
+    const job = generationMode === 'character_first'
+      ? await generatorService.startCharacterFirstGenerate(config)
+      : await generatorService.startGenerate(config);
     res.status(202).json(job);
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
@@ -498,6 +510,250 @@ router.post('/:id/optimize', async (req: Request, res: Response) => {
     res.status(201).json({ id: script.id, version: script.version, title: script.title });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+// ─── Character-First Generation Routes ───
+
+/**
+ * @openapi
+ * /api/scripts/generate-characters:
+ *   post:
+ *     tags: [角色优先生成]
+ *     summary: 启动角色优先两阶段生成
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [configId]
+ *             properties:
+ *               configId:
+ *                 type: string
+ *     responses:
+ *       202:
+ *         description: 角色生成任务已创建
+ *       400:
+ *         description: 请求参数验证失败
+ *       404:
+ *         description: 未找到指定配置
+ */
+router.post('/generate-characters', async (req: Request, res: Response) => {
+  try {
+    const { configId } = req.body;
+    if (!configId) {
+      res.status(400).json({ error: 'configId is required' });
+      return;
+    }
+    const config = await configService.getById(configId);
+    if (!config) {
+      res.status(404).json({ error: 'Config not found' });
+      return;
+    }
+    const job = await generatorService.startCharacterFirstGenerate(config);
+    res.status(202).json({
+      jobId: job.jobId,
+      status: job.status,
+      generationMode: job.generationMode,
+    });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+/**
+ * @openapi
+ * /api/scripts/jobs/{jobId}/characters:
+ *   get:
+ *     tags: [角色优先生成]
+ *     summary: 获取角色草稿
+ *     parameters:
+ *       - in: path
+ *         name: jobId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: 成功返回角色草稿
+ *       404:
+ *         description: 角色草稿不存在或已过期
+ */
+router.get('/jobs/:jobId/characters', async (req: Request, res: Response) => {
+  try {
+    const draft = await generatorService.getCharacterDraft(req.params.jobId);
+    if (!draft) {
+      res.status(404).json({ error: 'Character draft not found' });
+      return;
+    }
+    res.json({
+      jobId: draft.jobId,
+      status: draft.status,
+      characters: draft.characters,
+    });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+/**
+ * @openapi
+ * /api/scripts/jobs/{jobId}/characters/{characterId}:
+ *   put:
+ *     tags: [角色优先生成]
+ *     summary: 更新单个角色设定
+ *     parameters:
+ *       - in: path
+ *         name: jobId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: characterId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       200:
+ *         description: 角色更新成功
+ *       404:
+ *         description: 角色草稿或角色不存在
+ */
+// Valid values for bloodType and mbtiType (used for request validation)
+const VALID_BLOOD_TYPES = new Set(['A', 'B', 'O', 'AB']);
+const VALID_MBTI_TYPES = new Set([
+  'INTJ', 'INTP', 'ENTJ', 'ENTP',
+  'INFJ', 'INFP', 'ENFJ', 'ENFP',
+  'ISTJ', 'ISFJ', 'ESTJ', 'ESFJ',
+  'ISTP', 'ISFP', 'ESTP', 'ESFP',
+]);
+
+router.put('/jobs/:jobId/characters/:characterId', async (req: Request, res: Response) => {
+  try {
+    const updates: Partial<FullCharacterProfile> = req.body;
+
+    // Validate bloodType if provided
+    if (updates.bloodType !== undefined && !VALID_BLOOD_TYPES.has(updates.bloodType)) {
+      res.status(400).json({ error: `Invalid bloodType "${updates.bloodType}". Must be one of: A, B, O, AB` });
+      return;
+    }
+
+    // Validate mbtiType if provided
+    if (updates.mbtiType !== undefined && !VALID_MBTI_TYPES.has(updates.mbtiType)) {
+      res.status(400).json({ error: `Invalid mbtiType "${updates.mbtiType}". Must be one of the 16 valid MBTI types` });
+      return;
+    }
+
+    const { draft, validationErrors } = await generatorService.updateCharacterProfile(
+      req.params.jobId,
+      req.params.characterId,
+      updates,
+    );
+    const response: { characters: FullCharacterProfile[]; validationErrors?: typeof validationErrors } = {
+      characters: draft.characters,
+    };
+    if (validationErrors.length > 0) {
+      response.validationErrors = validationErrors;
+    }
+    res.json(response);
+  } catch (err) {
+    const message = (err as Error).message;
+    if (message.includes('not found')) {
+      res.status(404).json({ error: message });
+      return;
+    }
+    res.status(500).json({ error: message });
+  }
+});
+
+/**
+ * @openapi
+ * /api/scripts/jobs/{jobId}/confirm-characters:
+ *   post:
+ *     tags: [角色优先生成]
+ *     summary: 确认角色设定，触发第二阶段故事生成
+ *     parameters:
+ *       - in: path
+ *         name: jobId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: 角色已确认，第二阶段已启动
+ *       400:
+ *         description: 关系一致性校验失败
+ *       404:
+ *         description: 角色草稿不存在
+ */
+router.post('/jobs/:jobId/confirm-characters', async (req: Request, res: Response) => {
+  try {
+    await generatorService.confirmCharacters(req.params.jobId);
+    await generatorService.startStoryGenerate(req.params.jobId);
+    res.json({
+      jobId: req.params.jobId,
+      status: 'generating_story',
+    });
+  } catch (err) {
+    const message = (err as Error).message;
+    if (message.includes('not found')) {
+      res.status(404).json({ error: message });
+      return;
+    }
+    if (message.includes('consistency errors') || message.includes('Cannot confirm')) {
+      res.status(400).json({ error: message });
+      return;
+    }
+    res.status(500).json({ error: message });
+  }
+});
+
+/**
+ * @openapi
+ * /api/scripts/jobs/{jobId}/skip-review:
+ *   post:
+ *     tags: [角色优先生成]
+ *     summary: 跳过审查，自动确认角色并进入第二阶段
+ *     parameters:
+ *       - in: path
+ *         name: jobId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: 角色已自动确认，第二阶段已启动
+ *       400:
+ *         description: 关系一致性校验失败
+ *       404:
+ *         description: 角色草稿不存在
+ */
+router.post('/jobs/:jobId/skip-review', async (req: Request, res: Response) => {
+  try {
+    await generatorService.confirmCharacters(req.params.jobId);
+    await generatorService.startStoryGenerate(req.params.jobId);
+    res.json({
+      jobId: req.params.jobId,
+      status: 'generating_story',
+    });
+  } catch (err) {
+    const message = (err as Error).message;
+    if (message.includes('not found')) {
+      res.status(404).json({ error: message });
+      return;
+    }
+    if (message.includes('consistency errors') || message.includes('Cannot confirm')) {
+      res.status(400).json({ error: message });
+      return;
+    }
+    res.status(500).json({ error: message });
   }
 });
 

@@ -6,6 +6,7 @@
   <button class="tb" data-tab="quick"><i class="bi bi-lightning-charge"></i> 快速配置</button>
   <button class="tb" data-tab="history"><i class="bi bi-clock-history"></i> 历史剧本</button>
   <button class="tb" data-tab="raw"><i class="bi bi-terminal"></i> 原始请求</button>
+  <button class="tb" data-tab="characters"><i class="bi bi-people"></i> 角色列表</button>
   <button class="tb" data-tab="worklog"><i class="bi bi-journal-text"></i> 工作日志</button>
 </div>
 
@@ -80,7 +81,7 @@
 <div class="g"><div class="gh"><h3><i class="bi bi-play-circle"></i>创建创作会话</h3><span class="et">POST /api/authoring-sessions</span></div>
 <div class="gb">
   <div style="display:flex;gap:.75rem;align-items:flex-end;flex-wrap:wrap">
-    <div class="fi"><label>模式</label><select id="wf-md" style="width:160px"><option value="staged">staged（分步）</option><option value="vibe">vibe（一键）</option></select></div>
+    <div class="fi"><label>生成模式</label><select id="wf-gm" style="width:220px"><option value="staged">分步创作（逐步审查）</option><option value="vibe">一键生成（全自动）</option><option value="character_first">角色优先（先角色后故事）</option></select></div>
     <button class="btn bp" id="wf-bs"><i class="bi bi-arrow-right"></i>创建并推进</button>
   </div>
   <div style="margin-top:.6rem;font-size:.78rem;color:var(--dim)">Config ID: <code id="wf-cid" style="color:var(--ac)">—</code></div>
@@ -173,6 +174,20 @@
 <div class="gb">
   <div id="hist-list" style="display:flex;flex-direction:column;gap:.5rem"><div style="color:var(--dim);font-size:.82rem">点击刷新加载剧本列表...</div></div>
 </div></div>
+</div>
+
+<!-- Tab: Characters -->
+<div class="tp" id="tab-characters">
+<div class="g"><div class="gh"><h3><i class="bi bi-people"></i>角色列表</h3><button class="btn bg" id="char-refresh" style="font-size:.72rem;padding:.3rem .6rem"><i class="bi bi-arrow-clockwise"></i>刷新</button></div>
+<div class="gb">
+  <div style="display:flex;gap:.5rem;margin-bottom:.75rem;flex-wrap:wrap">
+    <input type="text" id="char-search" placeholder="按名称搜索..." style="flex:1;min-width:150px;font-size:.82rem;padding:.4rem .65rem">
+    <button class="btn bp" id="char-search-btn" style="font-size:.78rem;padding:.4rem .7rem"><i class="bi bi-search"></i>搜索</button>
+  </div>
+  <div id="char-list" style="display:flex;flex-direction:column;gap:.5rem"><div style="color:var(--dim);font-size:.82rem">点击刷新加载角色列表...</div></div>
+</div></div>
+<div id="char-detail-panel" class="g" style="display:none"><div class="gh"><h3 id="char-detail-title"><i class="bi bi-person-badge"></i>角色详情</h3><button class="btn bg" id="char-back" style="font-size:.72rem;padding:.3rem .6rem"><i class="bi bi-arrow-left"></i>返回</button></div>
+<div class="gb" id="char-detail-body"></div></div>
 </div>
 
 <!-- Tab: Raw -->

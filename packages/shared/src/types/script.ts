@@ -291,6 +291,8 @@ export interface Script {
   aiProvider?: string;
   aiModel?: string;
   playableStructure?: PlayableStructure;
+  characterProfiles?: FullCharacterProfile[];
+  generationMode?: GenerationMode;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -502,4 +504,108 @@ export class LLMError extends Error {
     this.provider = options.provider;
     this.isRetryable = options.isRetryable;
   }
+}
+
+// ─── 生成模式 ───
+
+/** 生成模式 */
+export type GenerationMode = 'oneshot' | 'character_first';
+
+// ─── 角色设定 ───
+
+/** 关系类型 */
+export type RelationshipType =
+  | 'ally'
+  | 'rival'
+  | 'lover'
+  | 'family'
+  | 'colleague'
+  | 'stranger'
+  | 'enemy'
+  | 'mentor'
+  | 'suspect';
+
+/** 叙事功能定位 */
+export type NarrativeRole =
+  | 'murderer'
+  | 'detective'
+  | 'witness'
+  | 'suspect'
+  | 'victim'
+  | 'accomplice'
+  | 'bystander';
+
+/** 血型 */
+export type BloodType = 'A' | 'B' | 'O' | 'AB';
+
+/** 角色类型（剧本中的角色定位，非角色库固有属性） */
+export type CharacterType = 'player' | 'npc';
+
+/** 星座 */
+export type ZodiacSign =
+  | 'aries' | 'taurus' | 'gemini' | 'cancer'
+  | 'leo' | 'virgo' | 'libra' | 'scorpio'
+  | 'sagittarius' | 'capricorn' | 'aquarius' | 'pisces';
+
+/** 角色关系（扩展版） */
+export interface CharacterProfileRelationship {
+  targetCharacterId: string;
+  targetCharacterName: string;
+  relationshipType: RelationshipType;
+  description: string;
+}
+
+/**
+ * 角色设定（通用角色库）
+ * 存储与剧本无关的通用角色属性，便于跨剧本复用。
+ * 性格、外貌、能力等描述应保持通用，不涉及具体剧情。
+ */
+export interface CharacterProfile {
+  characterId: string;
+  characterName: string;
+  gender: string;
+  zodiacSign?: ZodiacSign;
+  bloodType: BloodType;
+  mbtiType: string;
+  /** 通用性格描述（不涉及具体剧情） */
+  personality: string;
+  /** 通用外貌描述（不涉及具体剧情） */
+  appearance: string;
+  /** 通用能力/特质（不涉及具体剧情） */
+  specialTraits?: string[];
+}
+
+/**
+ * 剧本角色绑定（剧本关联表）
+ * 存储角色在某个剧本中的特定设定：类型、背景故事、动机、秘密、关系等。
+ */
+export interface ScriptCharacterBinding {
+  characterId: string;
+  characterName: string;
+  characterType: CharacterType;
+  backgroundStory: string;
+  primaryMotivation: string;
+  secrets: string[];
+  relationships: CharacterProfileRelationship[];
+  secondaryMotivations?: string[];
+  narrativeRole?: NarrativeRole;
+}
+
+/**
+ * 完整角色设定（生成阶段使用）
+ * 合并通用角色属性 + 剧本关联属性，用于 LLM 生成流程。
+ */
+export interface FullCharacterProfile extends CharacterProfile, ScriptCharacterBinding {}
+
+/** 角色草稿状态 */
+export type CharacterDraftStatus = 'pending_review' | 'confirmed';
+
+/** 角色草稿 */
+export interface CharacterDraft {
+  jobId: string;
+  configId: string;
+  characters: FullCharacterProfile[];
+  status: CharacterDraftStatus;
+  createdAt: string;
+  updatedAt: string;
 }
